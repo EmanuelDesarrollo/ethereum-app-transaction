@@ -2,6 +2,9 @@
 src = "src"
 out = "out"
 libs = ["lib"]
+# Pinned (instead of auto-picking the newest solc matching the pragma) so the
+# compiler is one Blockscout's verifier is guaranteed to already support.
+solc = "0.8.24"
 remappings = [
     "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
     "forge-std/=lib/forge-std/src/",
@@ -10,9 +13,9 @@ remappings = [
 [rpc_endpoints]
 hsk_testnet = "https://testnet.hsk.xyz"
 
-# HSK Chain testnet explorer (testnet-explorer.hsk.xyz) is Blockscout-based, so
-# verification doesn't need an API key. Deploy + verify with:
+# HSK Chain testnet explorer (testnet-explorer.hskchain.net) is Blockscout-based,
+# so verification doesn't need an API key. Deploy + verify with:
 #   forge script script/Deploy.s.sol --rpc-url hsk_testnet --broadcast \
-#     --verify --verifier blockscout --verifier-url https://testnet-explorer.hsk.xyz/api
+#     --verify --verifier blockscout --verifier-url https://testnet-explorer.hskchain.net/api
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
