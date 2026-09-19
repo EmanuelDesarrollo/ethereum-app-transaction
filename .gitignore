@@ -1,0 +1,24 @@
+# Node
+node_modules/
+dist/
+build/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Foundry
+contracts/cache/
+contracts/out/
+contracts/broadcast/*/31337/
+contracts/broadcast/**/dry-run/
+
+# React Native / Expo
+app/.expo/
+app/ios/Pods/
+app/android/.gradle/
+*.log
+
+# OS
+.DS_Store
