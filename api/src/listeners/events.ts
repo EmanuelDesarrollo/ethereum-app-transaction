@@ -1,6 +1,6 @@
-import { createPublicClient, createWalletClient, http, parseAbi, type Chain, type Hash } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
+import { parseAbi, type Hash } from "viem";
 import { config } from "../config";
+import { publicClient, walletClient } from "../chain";
 import { confirmCheckoutSession, findPendingSessionByPayment } from "../checkout/service";
 
 const erc20TransferAbi = parseAbi(["event Transfer(address indexed from, address indexed to, uint256 value)"]);
@@ -8,22 +8,6 @@ const erc20TransferAbi = parseAbi(["event Transfer(address indexed from, address
 const salesRegistryAbi = parseAbi([
   "function registrarVenta(address comercio, uint256 monto, string nota) external",
 ]);
-
-const hskChainTestnet: Chain = {
-  id: config.hskChainId,
-  name: "HSK Chain Testnet",
-  nativeCurrency: { name: "HSK", symbol: "HSK", decimals: 18 },
-  rpcUrls: { default: { http: [config.hskRpcUrl] } },
-};
-
-const publicClient = createPublicClient({ chain: hskChainTestnet, transport: http(config.hskRpcUrl) });
-
-const backendAccount = privateKeyToAccount(config.backendPrivateKey);
-const walletClient = createWalletClient({
-  account: backendAccount,
-  chain: hskChainTestnet,
-  transport: http(config.hskRpcUrl),
-});
 
 /// Escucha transferencias del stablecoin hacia la wallet del comercio, las
 /// hace coincidir con una sesión de checkout pendiente (mismo destinatario y
