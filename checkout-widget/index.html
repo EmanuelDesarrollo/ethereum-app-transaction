@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tienda de ejemplo — checkout con stablecoin</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f8f8fb;
+      margin: 0;
+      padding: 40px 16px;
+      color: #1a1a2e;
+    }
+    .product-card {
+      max-width: 360px;
+      margin: 0 auto;
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    }
+    .product-image {
+      height: 240px;
+      background: linear-gradient(135deg, #1a1a2e, #0f766e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 48px;
+    }
+    .product-info { padding: 20px; }
+    .product-info h1 { font-size: 20px; margin: 0 0 4px; }
+    .product-info p { color: #666; font-size: 14px; margin: 0 0 16px; }
+    .product-price { font-size: 28px; font-weight: 700; margin-bottom: 20px; }
+    .tienda-pay-btn {
+      width: 100%;
+      background: #0f766e;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .tienda-pay-btn:hover { background: #0d6259; }
+    .note {
+      max-width: 360px;
+      margin: 16px auto 0;
+      font-size: 12px;
+      color: #999;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="product-card">
+    <div class="product-image">👕</div>
+    <div class="product-info">
+      <h1>Camisa azul</h1>
+      <p>Tienda de ropa — pago directo en stablecoin, sin intermediarios.</p>
+      <div class="product-price">$15.00 USD</div>
+
+      <!--
+        Este es TODO el código que un sitio necesita pegar. Cambia los
+        data-attributes por el monto/moneda/nota de tu producto, y
+        data-api por la URL de tu backend.
+      -->
+      <button
+        class="tienda-pay-btn"
+        data-api="http://localhost:3000"
+        data-monto="15"
+        data-moneda="USDC"
+        data-nota="Camisa azul"
+      >
+        Pagar con stablecoin
+      </button>
+    </div>
+  </div>
+
+  <p class="note">
+    Demo del widget embebible de tienda-stablecoin-pay — funciona en cualquier
+    sitio, no depende de Shopify/WooCommerce. Requiere el backend corriendo en
+    <code>data-api</code> (por defecto <code>http://localhost:3000</code>).
+  </p>
+
+  <script src="widget.js"></script>
+</body>
+</html>
