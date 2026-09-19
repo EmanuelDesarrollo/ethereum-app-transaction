@@ -16,4 +16,7 @@ export const config = {
   stablecoinAddress: requireEnv("STABLECOIN_ADDRESS") as `0x${string}`,
   stablecoinDecimals: Number(process.env.STABLECOIN_DECIMALS ?? 6),
   comercioAddress: requireEnv("COMERCIO_ADDRESS") as `0x${string}`,
+  // Wallet owner de SalesRegistry — el listener la usa para llamar registrarVenta()
+  // cuando detecta un pago confirmado onchain.
+  backendPrivateKey: requireEnv("PRIVATE_KEY") as `0x${string}`,
 };
