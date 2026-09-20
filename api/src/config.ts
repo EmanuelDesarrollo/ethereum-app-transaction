@@ -1,4 +1,7 @@
-import "dotenv/config";
+import path from "node:path";
+import { config as loadEnv } from "dotenv";
+
+loadEnv({ path: path.resolve(__dirname, "../.env") });
 
 function requireEnv(name: string): string {
   const value = process.env[name];

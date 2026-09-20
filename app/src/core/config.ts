@@ -4,7 +4,7 @@
 // En el emulador de Android usa "http://10.0.2.2:3000".
 // IP de LAN del Mac — funciona tanto desde el simulador como desde un
 // iPhone físico en la misma WiFi (localhost solo funciona en el simulador).
-export const API_BASE_URL = "http://192.168.1.46:3000";
+export const API_BASE_URL = "http://192.168.1.159:3000";
 
 // HSK Chain testnet (ver contracts/README.md)
 export const HSK_CHAIN_ID = 133;
