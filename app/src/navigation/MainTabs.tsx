@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAccountTheme } from "../core/accountTheme";
 import { ComercioScreen } from "../features/comercio/ComercioScreen";
 import { GuiaButton } from "../features/guia/GuiaButton";
 import { HistorialScreen } from "../features/historial/HistorialScreen";
@@ -17,6 +18,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabs() {
   const insets = useSafeAreaInsets();
+  const theme = useAccountTheme();
   const bottomPadding = Math.max(insets.bottom, 14);
 
   return (
@@ -25,7 +27,7 @@ export function MainTabs() {
         initialRouteName="Pagar"
         screenOptions={({ route }) => ({
           headerShown: false,
-          tabBarActiveTintColor: "#08090a",
+          tabBarActiveTintColor: theme.accent,
           tabBarInactiveTintColor: "#777",
           tabBarStyle: {
             height: 58 + bottomPadding,

@@ -6,6 +6,7 @@ import { getSession, updateSession } from "../../core/session";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
+import { useAccountTheme } from "../../core/accountTheme";
 import { createReceiveQr } from "../../core/api/client";
 import { HSK_EXPLORER_URL } from "../../core/config";
 import { usePersonaWallet } from "./usePersonaWallet";
@@ -25,9 +26,15 @@ const cryptoRows = [
   { symbol: "USDC", name: "Mock USDC", amount: "HSK testnet", value: "$1.00", change: "+0.14%", color: "#2f80ed" },
 ];
 
+const BUSINESS_PROFILE_COLOR = "#14b8a6";
+
 export function PersonaHomeScreen() {
   useAutoTour("pagar");
   const insets = useSafeAreaInsets();
+  const theme = useAccountTheme();
+  const isBusiness = theme.accountType === "business";
+  const profileIconName = isBusiness ? "storefront-outline" : "person-outline";
+  const profileIconColor = isBusiness ? BUSINESS_PROFILE_COLOR : theme.accent;
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { account, balance, loading, busy, error, requestTestFunds, refreshBalance } = usePersonaWallet();
   const [refreshing, setRefreshing] = useState(false);
@@ -115,8 +122,8 @@ export function PersonaHomeScreen() {
         </Pressable>
 
         <View style={styles.detailContent}>
-          <View style={styles.detailIcon}>
-            <Ionicons name="person-outline" size={38} color="#fff" />
+          <View style={[styles.detailIcon, { backgroundColor: profileIconColor }]}>
+            <Ionicons name={profileIconName} size={38} color="#fff" />
           </View>
           <Text style={styles.detailTitle}>Tu perfil</Text>
           <Text style={styles.detailSubtitle}>Actualiza la informacion visible de tu cuenta demo.</Text>
@@ -129,7 +136,7 @@ export function PersonaHomeScreen() {
             autoCapitalize="none"
             keyboardType="email-address"
           />
-          <Pressable style={styles.panelButton} onPress={saveProfile}>
+          <Pressable style={[styles.panelButton, { backgroundColor: theme.accent }]} onPress={saveProfile}>
             <Text style={styles.panelButtonText}>Guardar cambios</Text>
           </Pressable>
         </View>
@@ -182,10 +189,10 @@ export function PersonaHomeScreen() {
         <View style={styles.topBar}>
           <View style={styles.topLeft}>
             <Pressable
-              style={[styles.roundIcon, styles.roundIconActive]}
+              style={[styles.roundIcon, styles.roundIconActive, { backgroundColor: profileIconColor }]}
               onPress={() => setPanel((value) => (value === "profile" ? "none" : "profile"))}
             >
-              <Ionicons name="person-outline" size={28} color="#fff" />
+              <Ionicons name={profileIconName} size={28} color="#fff" />
             </Pressable>
             <View style={styles.roundIcon}>
               <Ionicons name="navigate-circle-outline" size={31} color="#08090a" />
@@ -203,13 +210,13 @@ export function PersonaHomeScreen() {
         </View>
 
         <TourTarget name="pagar-saldo">
-          <View style={styles.hero}>
+          <View style={[styles.hero, { borderColor: theme.accentBorder, backgroundColor: theme.accentSoft }]}>
           <View style={styles.balanceRow}>
-            <Text style={styles.balance}>
+            <Text style={[styles.balance, { color: theme.accentDark }]}>
               ${visibleBalance}
               <Text style={styles.balanceCents}> mUSDC</Text>
             </Text>
-            <Pressable style={styles.refreshButton} onPress={recargarSaldo} disabled={refreshing}>
+            <Pressable style={[styles.refreshButton, { backgroundColor: "#fff" }]} onPress={recargarSaldo} disabled={refreshing}>
               {refreshing ? (
                 <ActivityIndicator size="small" color="#08090a" />
               ) : (
@@ -222,7 +229,7 @@ export function PersonaHomeScreen() {
               {account?.address}
             </Text>
           </Pressable>
-          <Text style={styles.walletHint}>Wallet conectada · toca la dirección para ver el historial real</Text>
+          <Text style={[styles.walletHint, { color: theme.accentDark }]}>Wallet conectada · toca la dirección para ver el historial real</Text>
           </View>
         </TourTarget>
 
@@ -230,18 +237,18 @@ export function PersonaHomeScreen() {
 
         <View style={styles.actionGrid}>
           <TourTarget name="pagar-escanear" style={styles.actionTarget}>
-            <Pressable style={styles.actionCard} onPress={() => navigation.navigate("Scan")}>
-              <Ionicons name="swap-vertical" size={31} color="#08090a" />
+            <Pressable style={[styles.actionCard, { borderColor: theme.accentBorder, backgroundColor: theme.accentSoft }]} onPress={() => navigation.navigate("Scan")}>
+              <Ionicons name="swap-vertical" size={31} color={theme.accent} />
               <Text style={styles.actionLabel}>Transfer</Text>
             </Pressable>
           </TourTarget>
-          <Pressable style={styles.actionCard} onPress={openReceiveQr} disabled={receiveBusy}>
-            {receiveBusy ? <ActivityIndicator color="#08090a" /> : <Ionicons name="qr-code-outline" size={31} color="#08090a" />}
+          <Pressable style={[styles.actionCard, { borderColor: theme.accentBorder, backgroundColor: theme.accentSoft }]} onPress={openReceiveQr} disabled={receiveBusy}>
+            {receiveBusy ? <ActivityIndicator color={theme.accent} /> : <Ionicons name="qr-code-outline" size={31} color={theme.accent} />}
             <Text style={styles.actionLabel}>Recibir</Text>
           </Pressable>
           <TourTarget name="pagar-faucet" style={styles.actionTarget}>
-            <Pressable style={styles.actionCard} onPress={requestTestFunds} disabled={busy}>
-              {busy ? <ActivityIndicator color="#08090a" /> : <Ionicons name="add" size={34} color="#08090a" />}
+            <Pressable style={[styles.actionCard, { borderColor: theme.accentBorder, backgroundColor: theme.accentSoft }]} onPress={requestTestFunds} disabled={busy}>
+              {busy ? <ActivityIndicator color={theme.accent} /> : <Ionicons name="add" size={34} color={theme.accent} />}
               <Text style={styles.actionLabel}>Fondos</Text>
             </Pressable>
           </TourTarget>
@@ -367,7 +374,7 @@ const styles = StyleSheet.create({
   searchCopy: { flex: 1 },
   searchName: { color: "#08090a", fontWeight: "900", fontSize: 15 },
   searchHint: { color: "#777", fontSize: 12, marginTop: 2 },
-  hero: { alignItems: "center", marginBottom: 46 },
+  hero: { alignItems: "center", marginBottom: 46, borderRadius: 8, borderWidth: 1, paddingVertical: 18, paddingHorizontal: 12 },
   balanceRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   balance: { color: "#000", fontSize: 48, fontWeight: "900", letterSpacing: 0 },
   balanceCents: { color: "#6c6c6c", fontSize: 24, fontWeight: "900" },
@@ -389,6 +396,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 92,
     borderRadius: 8,
+    borderWidth: 1,
     backgroundColor: "#f8f8f8",
     alignItems: "center",
     justifyContent: "center",

@@ -17,11 +17,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useComercioAgent } from "./useComercioAgent";
 import { TourTarget } from "../onboarding/TourTarget";
 import { useAutoTour } from "../onboarding/useAutoTour";
+import { useAccountTheme } from "../../core/accountTheme";
 import { HSK_EXPLORER_URL } from "../../core/config";
 import { formatStablecoinAmount } from "../../core/wallet/walletService";
 
 export function ComercioScreen() {
   useAutoTour("cobrar");
+  const theme = useAccountTheme();
   const { messages, send, crearCobro, limpiarCobro, sending, error, cobro, cobroStatus, cobroTxHash } =
     useComercioAgent();
   const [texto, setTexto] = useState("");
@@ -49,7 +51,7 @@ export function ComercioScreen() {
         {!cobro ? (
           <>
             <TourTarget name="cobrar-generador">
-              <View style={styles.generatorCard}>
+              <View style={[styles.generatorCard, { borderColor: theme.accentBorder }]}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.generatorTitle}>Generar QR de cobro</Text>
                 </View>
@@ -63,7 +65,7 @@ export function ComercioScreen() {
                     keyboardType="decimal-pad"
                     editable={!sending}
                   />
-                  <View style={styles.currencyPill}>
+                  <View style={[styles.currencyPill, { backgroundColor: theme.accent }]}>
                     <Text style={styles.currencyText}>USDC</Text>
                   </View>
                 </View>
@@ -74,7 +76,7 @@ export function ComercioScreen() {
                   placeholder="Nota del cobro"
                   editable={!sending}
                 />
-                <Pressable style={styles.generateButton} onPress={generarQr} disabled={sending}>
+                <Pressable style={[styles.generateButton, { backgroundColor: theme.accent }]} onPress={generarQr} disabled={sending}>
                   {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateButtonText}>Generar QR</Text>}
                 </Pressable>
               </View>
@@ -86,7 +88,13 @@ export function ComercioScreen() {
               </Text>
             ) : null}
             {messages.map((m, i) => (
-              <View key={i} style={[styles.bubble, m.from === "comercio" ? styles.bubbleComercio : styles.bubbleAgente]}>
+              <View
+                key={i}
+                style={[
+                  styles.bubble,
+                  m.from === "comercio" ? [styles.bubbleComercio, { backgroundColor: theme.accentDark }] : styles.bubbleAgente,
+                ]}
+              >
                 <Text style={m.from === "comercio" ? styles.bubbleTextComercio : styles.bubbleTextAgente}>{m.text}</Text>
               </View>
             ))}
@@ -96,11 +104,13 @@ export function ComercioScreen() {
             monto={cobro.payload.amount}
             nota={cobro.payload.nota}
             txHash={cobroTxHash}
+            accent={theme.accent}
+            accentDark={theme.accentDark}
             onVolver={limpiarCobro}
           />
         ) : (
           <TourTarget name="cobrar-qr">
-            <View style={styles.qrBox}>
+            <View style={[styles.qrBox, { borderColor: theme.accentBorder }]}>
               <Pressable style={styles.backButton} onPress={limpiarCobro}>
                 <Ionicons name="chevron-back" size={22} color="#08090a" />
                 <Text style={styles.backText}>Regresar</Text>
@@ -134,7 +144,7 @@ export function ComercioScreen() {
             onSubmitEditing={enviar}
             editable={!sending}
           />
-          <Pressable style={styles.sendButton} onPress={enviar} disabled={sending}>
+          <Pressable style={[styles.sendButton, { backgroundColor: theme.accent }]} onPress={enviar} disabled={sending}>
             {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendButtonText}>Enviar</Text>}
           </Pressable>
         </TourTarget>
@@ -147,10 +157,12 @@ interface CobroExitosoProps {
   monto: string;
   nota: string;
   txHash: `0x${string}` | undefined;
+  accent: string;
+  accentDark: string;
   onVolver: () => void;
 }
 
-function CobroExitoso({ monto, nota, txHash, onVolver }: CobroExitosoProps) {
+function CobroExitoso({ monto, nota, txHash, accent, accentDark, onVolver }: CobroExitosoProps) {
   const scale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -161,11 +173,11 @@ function CobroExitoso({ monto, nota, txHash, onVolver }: CobroExitosoProps) {
 
   return (
     <View style={styles.exitoBox}>
-      <Animated.View style={[styles.exitoCheckCircle, { transform: [{ scale }] }]}>
+      <Animated.View style={[styles.exitoCheckCircle, { backgroundColor: accent, transform: [{ scale }] }]}>
         <Ionicons name="checkmark" size={56} color="#fff" />
       </Animated.View>
       <Text style={styles.exitoTitulo}>¡Pago recibido!</Text>
-      <Text style={styles.exitoMonto}>${montoLegible} mUSDC</Text>
+      <Text style={[styles.exitoMonto, { color: accentDark }]}>${montoLegible} mUSDC</Text>
       {nota ? <Text style={styles.exitoNota}>{nota}</Text> : null}
       {txHash ? (
         <Pressable onPress={() => Linking.openURL(`${HSK_EXPLORER_URL}/tx/${txHash}`)}>
@@ -174,7 +186,7 @@ function CobroExitoso({ monto, nota, txHash, onVolver }: CobroExitosoProps) {
           </Text>
         </Pressable>
       ) : null}
-      <Pressable style={styles.exitoBoton} onPress={onVolver}>
+      <Pressable style={[styles.exitoBoton, { backgroundColor: accent }]} onPress={onVolver}>
         <Text style={styles.exitoBotonTexto}>Volver al inicio</Text>
       </Pressable>
     </View>

@@ -2,11 +2,13 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+import { useAccountTheme } from "../../core/accountTheme";
 import { fetchBackendHistory } from "./api";
 import { listarMovimientos, type LedgerMovement } from "./ledger";
 import { reiniciarTours } from "../onboarding/storage";
 
 export function HistorialScreen() {
+  const theme = useAccountTheme();
   const [items, setItems] = useState<LedgerMovement[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,9 +38,9 @@ export function HistorialScreen() {
     <View style={styles.screen}>
       <View style={styles.header}>
         <Text style={styles.title}>Historial</Text>
-        <Pressable style={styles.tourButton} onPress={restartTours}>
-          <Ionicons name="help-circle-outline" size={20} color="#08090a" />
-          <Text style={styles.tourText}>Ver tutorial otra vez</Text>
+        <Pressable style={[styles.tourButton, { backgroundColor: theme.accentSoft, borderColor: theme.accentBorder }]} onPress={restartTours}>
+          <Ionicons name="help-circle-outline" size={20} color={theme.accent} />
+          <Text style={[styles.tourText, { color: theme.accentDark }]}>Ver tutorial otra vez</Text>
         </Pressable>
       </View>
 
@@ -56,7 +58,7 @@ export function HistorialScreen() {
         <ScrollView contentContainerStyle={styles.list}>
           {items.map((item) => (
             <View key={item.id} style={styles.row}>
-              <View style={[styles.icon, item.tipo === "venta" ? styles.saleIcon : styles.payIcon]}>
+              <View style={[styles.icon, { backgroundColor: item.tipo === "venta" ? theme.accent : theme.accentDark }]}>
                 <Ionicons name={item.tipo === "venta" ? "arrow-down" : "arrow-up"} size={22} color="#fff" />
               </View>
               <View style={styles.rowCopy}>
@@ -89,6 +91,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
     gap: 6,
     borderRadius: 8,
+    borderWidth: 1,
     backgroundColor: "#f2f4f5",
     paddingHorizontal: 12,
     paddingVertical: 10,
