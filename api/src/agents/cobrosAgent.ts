@@ -21,6 +21,7 @@ export interface CrearCobroInput {
   monto: number;
   moneda: Moneda;
   nota?: string;
+  comercio: `0x${string}`;
 }
 
 /// Agente de cobros: entiende la intención de cobro a través del LLM, pero la

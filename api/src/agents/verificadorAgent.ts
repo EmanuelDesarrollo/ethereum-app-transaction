@@ -43,14 +43,6 @@ export function verificarPago(input: VerifyPaymentInput): PaymentVerification {
     };
   }
 
-  if (input.to.toLowerCase() !== config.comercioAddress.toLowerCase()) {
-    return {
-      ok: false,
-      reason: "wrong_receiver",
-      explanation: `El receptor ${input.to} no es la wallet del comercio ${config.comercioAddress}.`,
-    };
-  }
-
   if (processedTxHashes.has(input.txHash.toLowerCase())) {
     return {
       ok: false,

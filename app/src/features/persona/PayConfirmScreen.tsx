@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { getOrCreateAccount, payCheckout, formatStablecoinAmount } from "../../core/wallet/walletService";
 import { registrarMovimiento } from "../historial/ledger";
+import { getSession } from "../../core/session";
+import { HSK_EXPLORER_URL } from "../../core/config";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PayConfirm">;
 
@@ -18,7 +20,9 @@ export function PayConfirmScreen({ route, navigation }: Props) {
   const confirmarPago = async () => {
     setState({ status: "paying" });
     try {
-      const account = await getOrCreateAccount();
+      const session = await getSession();
+      if (!session) throw new Error("No hay sesión activa; vuelve a iniciar sesión.");
+      const account = await getOrCreateAccount(session.userId);
       const txHash = await payCheckout(account, payload);
       await registrarMovimiento({
         tipo: "pago",
@@ -50,9 +54,12 @@ export function PayConfirmScreen({ route, navigation }: Props) {
       {state.status === "done" ? (
         <View style={styles.doneBox}>
           <Text style={styles.doneText}>✓ Pago enviado</Text>
-          <Text style={styles.txHash} numberOfLines={1}>
-            {state.txHash}
-          </Text>
+          <Pressable onPress={() => Linking.openURL(`${HSK_EXPLORER_URL}/tx/${state.txHash}`)}>
+            <Text style={[styles.txHash, styles.txHashLink]} numberOfLines={1}>
+              {state.txHash}
+            </Text>
+          </Pressable>
+          <Text style={styles.txHashHint}>Toca el hash para verlo en el explorador</Text>
           <Pressable style={styles.button} onPress={() => navigation.popToTop()}>
             <Text style={styles.buttonText}>Listo</Text>
           </Pressable>
@@ -82,4 +89,6 @@ const styles = StyleSheet.create({
   doneBox: { marginTop: 32, alignItems: "center", gap: 8 },
   doneText: { fontSize: 22, fontWeight: "700", color: "#0f766e" },
   txHash: { fontSize: 12, fontFamily: "monospace", color: "#666" },
+  txHashLink: { textDecorationLine: "underline" },
+  txHashHint: { fontSize: 11, color: "#999" },
 });

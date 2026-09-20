@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -15,10 +17,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { useComercioAgent } from "./useComercioAgent";
 import { TourTarget } from "../onboarding/TourTarget";
 import { useAutoTour } from "../onboarding/useAutoTour";
+import { HSK_EXPLORER_URL } from "../../core/config";
+import { formatStablecoinAmount } from "../../core/wallet/walletService";
 
 export function ComercioScreen() {
   useAutoTour("cobrar");
-  const { messages, send, crearCobro, limpiarCobro, sending, error, cobro, cobroStatus } = useComercioAgent();
+  const { messages, send, crearCobro, limpiarCobro, sending, error, cobro, cobroStatus, cobroTxHash } =
+    useComercioAgent();
   const [texto, setTexto] = useState("");
   const [monto, setMonto] = useState("15");
   const [nota, setNota] = useState("Camisa azul");
@@ -86,6 +91,13 @@ export function ComercioScreen() {
               </View>
             ))}
           </>
+        ) : cobroStatus === "confirmed" ? (
+          <CobroExitoso
+            monto={cobro.payload.amount}
+            nota={cobro.payload.nota}
+            txHash={cobroTxHash}
+            onVolver={limpiarCobro}
+          />
         ) : (
           <TourTarget name="cobrar-qr">
             <View style={styles.qrBox}>
@@ -104,8 +116,6 @@ export function ComercioScreen() {
                   <ActivityIndicator />
                   <Text style={styles.statusText}>Esperando pago...</Text>
                 </View>
-              ) : cobroStatus === "confirmed" ? (
-                <Text style={styles.statusConfirmed}>✓ Pagado y confirmado onchain</Text>
               ) : null}
             </View>
           </TourTarget>
@@ -130,6 +140,44 @@ export function ComercioScreen() {
         </TourTarget>
       ) : null}
     </KeyboardAvoidingView>
+  );
+}
+
+interface CobroExitosoProps {
+  monto: string;
+  nota: string;
+  txHash: `0x${string}` | undefined;
+  onVolver: () => void;
+}
+
+function CobroExitoso({ monto, nota, txHash, onVolver }: CobroExitosoProps) {
+  const scale = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, friction: 5, tension: 60 }).start();
+  }, [scale]);
+
+  const montoLegible = formatStablecoinAmount(BigInt(monto));
+
+  return (
+    <View style={styles.exitoBox}>
+      <Animated.View style={[styles.exitoCheckCircle, { transform: [{ scale }] }]}>
+        <Ionicons name="checkmark" size={56} color="#fff" />
+      </Animated.View>
+      <Text style={styles.exitoTitulo}>¡Pago recibido!</Text>
+      <Text style={styles.exitoMonto}>${montoLegible} mUSDC</Text>
+      {nota ? <Text style={styles.exitoNota}>{nota}</Text> : null}
+      {txHash ? (
+        <Pressable onPress={() => Linking.openURL(`${HSK_EXPLORER_URL}/tx/${txHash}`)}>
+          <Text style={styles.exitoTxHash} numberOfLines={1}>
+            Ver transacción real en el explorador
+          </Text>
+        </Pressable>
+      ) : null}
+      <Pressable style={styles.exitoBoton} onPress={onVolver}>
+        <Text style={styles.exitoBotonTexto}>Volver al inicio</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -199,7 +247,38 @@ const styles = StyleSheet.create({
   qrMeta: { color: "#9aa0a6", fontSize: 11, maxWidth: "100%" },
   statusRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
   statusText: { color: "#666" },
-  statusConfirmed: { color: "#0f766e", fontWeight: "700", marginTop: 4 },
+  exitoBox: {
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fff",
+    borderRadius: 8,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: "#e6ebef",
+  },
+  exitoCheckCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: "#0f766e",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+  exitoTitulo: { color: "#08090a", fontSize: 24, fontWeight: "900" },
+  exitoMonto: { color: "#0f766e", fontSize: 20, fontWeight: "900", marginTop: 4 },
+  exitoNota: { color: "#646b72", fontSize: 14, marginTop: 2 },
+  exitoTxHash: { color: "#2f80ed", fontSize: 13, fontWeight: "700", marginTop: 12, textDecorationLine: "underline" },
+  exitoBoton: {
+    minHeight: 48,
+    minWidth: 200,
+    borderRadius: 8,
+    backgroundColor: "#08090a",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+  },
+  exitoBotonTexto: { color: "#fff", fontSize: 15, fontWeight: "900" },
   error: { color: "#b91c1c", textAlign: "center", marginTop: 8 },
   inputRow: { flexDirection: "row", padding: 12, gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderColor: "#ddd", backgroundColor: "#fff" },
   input: { flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10 },

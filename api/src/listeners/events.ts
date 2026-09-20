@@ -11,21 +11,18 @@ const salesRegistryAbi = parseAbi([
   "function registrarVenta(address comercio, uint256 monto, string nota) external",
 ]);
 
-/// Escucha transferencias del stablecoin hacia la wallet del comercio, las
-/// hace coincidir con una sesión de checkout pendiente (mismo destinatario y
-/// mismo monto exacto) y anota la venta en SalesRegistry. El pago en sí ya
-/// ocurrió onchain como transferencia ERC-20 normal — este listener no mueve
-/// fondos, solo detecta y registra.
+/// Escucha todas las transferencias del stablecoin (cualquier wallet puede
+/// estar cobrando, no una sola fija), las hace coincidir con una sesión de
+/// checkout pendiente (mismo destinatario y mismo monto exacto) y anota la
+/// venta en SalesRegistry. El pago en sí ya ocurrió onchain como transferencia
+/// ERC-20 normal — este listener no mueve fondos, solo detecta y registra.
 export function startPaymentListener() {
-  console.log(
-    `[listener] escuchando transferencias de ${config.stablecoinAddress} hacia ${config.comercioAddress}...`,
-  );
+  console.log(`[listener] escuchando transferencias de ${config.stablecoinAddress}...`);
 
   return publicClient.watchContractEvent({
     address: config.stablecoinAddress,
     abi: erc20TransferAbi,
     eventName: "Transfer",
-    args: { to: config.comercioAddress },
     poll: true,
     pollingInterval: 3000,
     onLogs: (logs) => {

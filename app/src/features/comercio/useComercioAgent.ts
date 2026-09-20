@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createCheckoutSession, sendAgentMessage, getCheckoutSession } from "../../core/api/client";
 import type { CheckoutPayload, CheckoutStatus, Moneda } from "../../core/api/types";
 import { registrarMovimiento } from "../historial/ledger";
+import { getSession } from "../../core/session";
 
 export interface ChatEntry {
   from: "comercio" | "agente";
@@ -21,6 +22,7 @@ export function useComercioAgent() {
   const [error, setError] = useState<string>();
   const [cobro, setCobro] = useState<Cobro | undefined>(undefined);
   const [cobroStatus, setCobroStatus] = useState<CheckoutStatus>();
+  const [cobroTxHash, setCobroTxHash] = useState<`0x${string}`>();
   const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   const send = useCallback(
@@ -29,7 +31,9 @@ export function useComercioAgent() {
       setError(undefined);
       setMessages((prev) => [...prev, { from: "comercio", text: mensaje }]);
       try {
-        const res = await sendAgentMessage(mensaje, conversationId);
+        const session = await getSession();
+        if (!session) throw new Error("No hay sesión activa; vuelve a iniciar sesión.");
+        const res = await sendAgentMessage(mensaje, session.walletAddress, conversationId);
         setConversationId(res.conversationId);
         setMessages((prev) => [...prev, { from: "agente", text: res.respuesta }]);
         if (res.cobro) {
@@ -49,7 +53,9 @@ export function useComercioAgent() {
     setSending(true);
     setError(undefined);
     try {
-      const session = await createCheckoutSession(input);
+      const authSession = await getSession();
+      if (!authSession) throw new Error("No hay sesión activa; vuelve a iniciar sesión.");
+      const session = await createCheckoutSession({ ...input, comercio: authSession.walletAddress });
       if (!session.qrDataUrl) {
         throw new Error("El backend no devolvio QR para este cobro.");
       }
@@ -74,6 +80,7 @@ export function useComercioAgent() {
   const limpiarCobro = useCallback(() => {
     setCobro(undefined);
     setCobroStatus(undefined);
+    setCobroTxHash(undefined);
     setError(undefined);
   }, []);
 
@@ -88,6 +95,7 @@ export function useComercioAgent() {
         if (session.status !== "pending") {
           setCobroStatus(session.status);
           if (session.status === "confirmed") {
+            setCobroTxHash(session.txHash);
             await registrarMovimiento({
               tipo: "venta",
               monto: session.monto ?? Number(cobro.payload.amount) / 10 ** cobro.payload.decimals,
@@ -109,5 +117,5 @@ export function useComercioAgent() {
     };
   }, [cobro, cobroStatus]);
 
-  return { messages, send, crearCobro, limpiarCobro, sending, error, cobro, cobroStatus };
+  return { messages, send, crearCobro, limpiarCobro, sending, error, cobro, cobroStatus, cobroTxHash };
 }

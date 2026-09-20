@@ -8,6 +8,7 @@ import { startPaymentListener } from "./listeners/events";
 import { soporteRouter } from "./agents/registroSoporteAgent";
 import { guiaRouter } from "./agents/guiaAgent";
 import { receiveQrRouter } from "./wallet/receiveQr";
+import { authRouter } from "./auth/router";
 
 const app = express();
 app.use(cors());
@@ -20,6 +21,7 @@ app.use("/agent", guiaRouter);
 app.use("/faucet", faucetRouter);
 app.use("/wallet", receiveQrRouter);
 app.use("/support", soporteRouter);
+app.use("/auth", authRouter);
 
 app.listen(config.port, () => {
   console.log(`API escuchando en http://localhost:${config.port}`);

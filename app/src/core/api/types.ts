@@ -51,6 +51,33 @@ export interface GuideResponse {
   acciones: GuideAction[];
 }
 
+export type AccountType = "person" | "business";
+
+export interface UserProfile {
+  userId: string;
+  accountType: AccountType;
+  name: string;
+  email: string;
+  walletAddress: `0x${string}`;
+  documentId?: string;
+  businessName?: string;
+  taxId?: string;
+  contactName?: string;
+  createdAt: string;
+}
+
+export interface RegisterInput {
+  accountType: AccountType;
+  name: string;
+  email: string;
+  password: string;
+  walletAddress: `0x${string}`;
+  documentId?: string;
+  businessName?: string;
+  taxId?: string;
+  contactName?: string;
+}
+
 export interface ReceiveQrResponse {
   qrDataUrl: string;
   payload: {

@@ -1,5 +1,14 @@
 import { API_BASE_URL } from "../config";
-import type { AgentMessageResponse, CheckoutSessionResponse, GuideResponse, Moneda, ReceiveQrResponse, TourModo } from "./types";
+import type {
+  AgentMessageResponse,
+  CheckoutSessionResponse,
+  GuideResponse,
+  Moneda,
+  ReceiveQrResponse,
+  RegisterInput,
+  TourModo,
+  UserProfile,
+} from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -14,10 +23,28 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-export function sendAgentMessage(mensaje: string, conversationId?: string): Promise<AgentMessageResponse> {
+export function sendAgentMessage(
+  mensaje: string,
+  comercio: `0x${string}`,
+  conversationId?: string,
+): Promise<AgentMessageResponse> {
   return request<AgentMessageResponse>("/agent/message", {
     method: "POST",
-    body: JSON.stringify({ mensaje, conversationId }),
+    body: JSON.stringify({ mensaje, comercio, conversationId }),
+  });
+}
+
+export function registerUser(input: RegisterInput): Promise<UserProfile> {
+  return request<UserProfile>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function loginUser(email: string, password: string): Promise<UserProfile> {
+  return request<UserProfile>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
   });
 }
 
@@ -40,6 +67,7 @@ export function createCheckoutSession(input: {
   monto: number;
   moneda: Moneda;
   nota?: string;
+  comercio: `0x${string}`;
 }): Promise<CheckoutSessionResponse> {
   return request<CheckoutSessionResponse>("/checkout", {
     method: "POST",

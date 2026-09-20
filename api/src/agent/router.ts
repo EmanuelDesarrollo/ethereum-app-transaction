@@ -28,10 +28,13 @@ const conversations = new Map<string, AgentConversation>();
 export const agentRouter = Router();
 
 agentRouter.post("/message", async (req, res) => {
-  const { mensaje, conversationId: incomingId } = req.body ?? {};
+  const { mensaje, conversationId: incomingId, comercio } = req.body ?? {};
 
   if (typeof mensaje !== "string" || mensaje.trim() === "") {
     return res.status(400).json({ error: "falta el campo mensaje (texto del comercio)" });
+  }
+  if (typeof comercio !== "string") {
+    return res.status(400).json({ error: "falta el campo comercio (tu wallet, la que va a recibir el cobro)" });
   }
 
   const conversationId = typeof incomingId === "string" && conversations.has(incomingId) ? incomingId : randomUUID();
@@ -78,7 +81,7 @@ agentRouter.post("/message", async (req, res) => {
           // herramienta, y es este backend el que corre la misma lógica que
           // POST /checkout (createCheckoutSession) y genera el QR.
           const input = tool.input as { monto: number; moneda: Moneda; nota?: string };
-          const result = await crearCobro(input);
+          const result = await crearCobro({ ...input, comercio: comercio as `0x${string}` });
           const session = result.session;
           cobro = { sessionId: result.sessionId, qrDataUrl: result.qrDataUrl, payload: result.payload };
 

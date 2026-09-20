@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as SecureStore from "expo-secure-store";
-import { useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { getSession, updateSession } from "../../core/session";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { createReceiveQr } from "../../core/api/client";
+import { HSK_EXPLORER_URL } from "../../core/config";
 import { usePersonaWallet } from "./usePersonaWallet";
 import { TourTarget } from "../onboarding/TourTarget";
 import { useAutoTour } from "../onboarding/useAutoTour";
@@ -24,16 +25,15 @@ const cryptoRows = [
   { symbol: "USDC", name: "Mock USDC", amount: "HSK testnet", value: "$1.00", change: "+0.14%", color: "#2f80ed" },
 ];
 
-const SESSION_STORAGE_KEY = "tienda_stablecoin_session";
-
 export function PersonaHomeScreen() {
   useAutoTour("pagar");
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { account, balance, loading, busy, error, requestTestFunds } = usePersonaWallet();
+  const { account, balance, loading, busy, error, requestTestFunds, refreshBalance } = usePersonaWallet();
+  const [refreshing, setRefreshing] = useState(false);
   const [panel, setPanel] = useState<"none" | "profile" | "search">("none");
-  const [profileName, setProfileName] = useState("Juan Emilio");
-  const [profileEmail, setProfileEmail] = useState("juem@gmail.com");
+  const [profileName, setProfileName] = useState("");
+  const [profileEmail, setProfileEmail] = useState("");
   const [search, setSearch] = useState("");
   const [receiveQr, setReceiveQr] = useState<string>();
   const [receiveOpen, setReceiveOpen] = useState(false);
@@ -43,22 +43,40 @@ export function PersonaHomeScreen() {
 
   useEffect(() => {
     void (async () => {
-      const raw = await SecureStore.getItemAsync(SESSION_STORAGE_KEY);
-      if (!raw) return;
-      const session = JSON.parse(raw) as { name?: string; email?: string };
-      setProfileName(session.name ?? "Juan Emilio");
-      setProfileEmail(session.email ?? "juem@gmail.com");
+      const session = await getSession();
+      if (!session) return;
+      setProfileName(session.name);
+      setProfileEmail(session.email);
     })();
   }, []);
 
+  // Las pestañas se quedan montadas al cambiar entre ellas (no se
+  // desmontan), así que sin esto el saldo se queda desactualizado después
+  // de pagar o cobrar en otra pestaña/pantalla.
+  useFocusEffect(
+    useCallback(() => {
+      if (account) void refreshBalance(account.address);
+    }, [account, refreshBalance]),
+  );
+
+  const abrirEnExplorador = () => {
+    if (!account) return;
+    void Linking.openURL(`${HSK_EXPLORER_URL}/address/${account.address}`);
+  };
+
   const saveProfile = async () => {
-    const raw = await SecureStore.getItemAsync(SESSION_STORAGE_KEY);
-    const current = raw ? JSON.parse(raw) : {};
-    await SecureStore.setItemAsync(
-      SESSION_STORAGE_KEY,
-      JSON.stringify({ ...current, name: profileName, email: profileEmail }),
-    );
+    await updateSession({ name: profileName, email: profileEmail });
     setPanel("none");
+  };
+
+  const recargarSaldo = async () => {
+    if (!account || refreshing) return;
+    setRefreshing(true);
+    try {
+      await refreshBalance(account.address);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   const openReceiveQr = async () => {
@@ -186,19 +204,25 @@ export function PersonaHomeScreen() {
 
         <TourTarget name="pagar-saldo">
           <View style={styles.hero}>
-          <Text style={styles.balance}>
-            ${visibleBalance}
-            <Text style={styles.balanceCents}> mUSDC</Text>
-          </Text>
-          <View style={styles.changePill}>
-            <Text style={styles.changePositive}>+1.26%</Text>
-            <Text style={styles.changeText}> · Today</Text>
-            <Ionicons name="chevron-forward" size={18} color="#08090a" />
+          <View style={styles.balanceRow}>
+            <Text style={styles.balance}>
+              ${visibleBalance}
+              <Text style={styles.balanceCents}> mUSDC</Text>
+            </Text>
+            <Pressable style={styles.refreshButton} onPress={recargarSaldo} disabled={refreshing}>
+              {refreshing ? (
+                <ActivityIndicator size="small" color="#08090a" />
+              ) : (
+                <Ionicons name="refresh" size={20} color="#08090a" />
+              )}
+            </Pressable>
           </View>
-          <Text style={styles.address} numberOfLines={1}>
-            {account?.address}
-          </Text>
-          <Text style={styles.walletHint}>Wallet conectada</Text>
+          <Pressable onPress={abrirEnExplorador}>
+            <Text style={[styles.address, styles.addressLink]} numberOfLines={1}>
+              {account?.address}
+            </Text>
+          </Pressable>
+          <Text style={styles.walletHint}>Wallet conectada · toca la dirección para ver el historial real</Text>
           </View>
         </TourTarget>
 
@@ -344,20 +368,19 @@ const styles = StyleSheet.create({
   searchName: { color: "#08090a", fontWeight: "900", fontSize: 15 },
   searchHint: { color: "#777", fontSize: 12, marginTop: 2 },
   hero: { alignItems: "center", marginBottom: 46 },
+  balanceRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   balance: { color: "#000", fontSize: 48, fontWeight: "900", letterSpacing: 0 },
   balanceCents: { color: "#6c6c6c", fontSize: 24, fontWeight: "900" },
-  changePill: {
-    flexDirection: "row",
-    alignItems: "center",
+  refreshButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#f0f0f0",
-    borderRadius: 34,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    marginTop: 16,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  changePositive: { color: "#3f9142", fontSize: 24, fontWeight: "900" },
-  changeText: { color: "#08090a", fontSize: 24, fontWeight: "700" },
   address: { color: "#9b9b9b", fontSize: 12, marginTop: 12, maxWidth: "90%" },
+  addressLink: { textDecorationLine: "underline" },
   walletHint: { color: "#08090a", fontSize: 12, fontWeight: "900", marginTop: 6 },
   error: { color: "#b91c1c", fontSize: 13, fontWeight: "800", marginBottom: 12, textAlign: "center" },
   actionGrid: { flexDirection: "row", gap: 12, marginBottom: 34 },

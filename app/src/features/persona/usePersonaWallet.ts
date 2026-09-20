@@ -7,6 +7,7 @@ import {
   requestTestStablecoin,
 } from "../../core/wallet/walletService";
 import { requestGasSponsorship } from "../../core/api/client";
+import { getSession } from "../../core/session";
 
 export function usePersonaWallet() {
   const [account, setAccount] = useState<PrivateKeyAccount>();
@@ -23,7 +24,9 @@ export function usePersonaWallet() {
   useEffect(() => {
     (async () => {
       try {
-        const acc = await getOrCreateAccount();
+        const session = await getSession();
+        if (!session) throw new Error("No hay sesión activa; vuelve a iniciar sesión.");
+        const acc = await getOrCreateAccount(session.userId);
         setAccount(acc);
         await refreshBalance(acc.address);
       } catch (err) {

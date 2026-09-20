@@ -11,36 +11,16 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as SecureStore from "expo-secure-store";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
+import { loginUser, registerUser } from "../../core/api/client";
+import { generateWallet, persistWalletForUser } from "../../core/wallet/walletService";
+import { setSession } from "../../core/session";
+import type { AccountType } from "../../core/api/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Auth">;
 type AuthMode = "landing" | "login" | "register";
 type AuthState = { status: "idle" } | { status: "loading" } | { status: "error"; message: string };
-type AccountType = "person" | "business";
-
-const USERS_STORAGE_KEY = "tienda_stablecoin_users";
-const SESSION_STORAGE_KEY = "tienda_stablecoin_session";
-const DEMO_PERSON_EMAIL = "juem@gmail.com";
-const DEMO_PERSON_PASSWORD = "1234";
-const DEMO_PERSON_NAME = "Juan Emilio";
-const DEMO_PERSON_DOCUMENT = "1000000000";
-
-type DemoUser = {
-  name: string;
-  email: string;
-  password: string;
-};
-
-async function loadUsers(): Promise<DemoUser[]> {
-  const raw = await SecureStore.getItemAsync(USERS_STORAGE_KEY);
-  return raw ? (JSON.parse(raw) as DemoUser[]) : [];
-}
-
-async function saveUsers(users: DemoUser[]) {
-  await SecureStore.setItemAsync(USERS_STORAGE_KEY, JSON.stringify(users));
-}
 
 export function AuthScreen({ navigation }: Props) {
   const [mode, setMode] = useState<AuthMode>("landing");
@@ -60,20 +40,14 @@ export function AuthScreen({ navigation }: Props) {
   const resetState = (nextMode: AuthMode) => {
     setMode(nextMode);
     setState({ status: "idle" });
-    if (nextMode === "login") {
-      setEmail(DEMO_PERSON_EMAIL);
-      setPassword(DEMO_PERSON_PASSWORD);
-    }
-    if (nextMode === "register") {
-      setAccountType("person");
-      setName(DEMO_PERSON_NAME);
-      setDocumentId(DEMO_PERSON_DOCUMENT);
-      setBusinessName("");
-      setTaxId("");
-      setContactName("");
-      setEmail(DEMO_PERSON_EMAIL);
-      setPassword(DEMO_PERSON_PASSWORD);
-    }
+    setAccountType("person");
+    setName("");
+    setDocumentId("");
+    setBusinessName("");
+    setTaxId("");
+    setContactName("");
+    setEmail("");
+    setPassword("");
   };
 
   const submit = async () => {
@@ -100,75 +74,42 @@ export function AuthScreen({ navigation }: Props) {
 
     setState({ status: "loading" });
     try {
-      if (!isRegister && cleanEmail === DEMO_PERSON_EMAIL && password === DEMO_PERSON_PASSWORD) {
-        await SecureStore.setItemAsync(
-          SESSION_STORAGE_KEY,
-          JSON.stringify({ email: DEMO_PERSON_EMAIL, name: DEMO_PERSON_NAME, accountType: "person" }),
-        );
-        setState({ status: "idle" });
-        navigation.replace("Main");
-        return;
-      }
-
-      if (isRegister && accountType === "person") {
-        if (
-          cleanName !== DEMO_PERSON_NAME ||
-          cleanDocumentId !== DEMO_PERSON_DOCUMENT ||
-          cleanEmail !== DEMO_PERSON_EMAIL ||
-          password !== DEMO_PERSON_PASSWORD
-        ) {
-          setState({ status: "error", message: "La persona natural demo ya viene con los datos de prueba." });
-          return;
-        }
-        await SecureStore.setItemAsync(
-          SESSION_STORAGE_KEY,
-          JSON.stringify({
-            email: DEMO_PERSON_EMAIL,
-            name: DEMO_PERSON_NAME,
-            documentId: DEMO_PERSON_DOCUMENT,
-            accountType: "person",
-          }),
-        );
-        setState({ status: "idle" });
-        navigation.replace("Main");
-        return;
-      }
-
-      const users = await loadUsers();
-      const existing = users.find((user) => user.email === cleanEmail);
-
       if (isRegister) {
-        if (existing) {
-          setState({ status: "error", message: "Ese correo ya tiene cuenta." });
-          return;
-        }
-        const userName = accountType === "person" ? DEMO_PERSON_NAME : cleanBusinessName;
-        const user: DemoUser = { name: userName, email: cleanEmail, password };
-        await saveUsers([...users, user]);
-        await SecureStore.setItemAsync(
-          SESSION_STORAGE_KEY,
-          JSON.stringify({
-            email: user.email,
-            name: user.name,
-            taxId: cleanTaxId,
-            contactName: cleanContactName,
-            accountType,
-          }),
-        );
+        // La wallet se genera en el dispositivo antes de registrar — al
+        // backend solo le llega la dirección pública, nunca la llave.
+        const wallet = generateWallet();
+        const profile = await registerUser({
+          accountType,
+          name: accountType === "person" ? cleanName : cleanBusinessName,
+          email: cleanEmail,
+          password,
+          walletAddress: wallet.address,
+          documentId: accountType === "person" ? cleanDocumentId : undefined,
+          businessName: accountType === "business" ? cleanBusinessName : undefined,
+          taxId: accountType === "business" ? cleanTaxId : undefined,
+          contactName: accountType === "business" ? cleanContactName : undefined,
+        });
+        await persistWalletForUser(profile.userId, wallet.privateKey);
+        await setSession({
+          userId: profile.userId,
+          name: profile.name,
+          email: profile.email,
+          accountType: profile.accountType,
+          walletAddress: profile.walletAddress,
+        });
         setState({ status: "idle" });
         navigation.replace("Main");
         return;
       }
 
-      if (!existing || existing.password !== password) {
-        setState({ status: "error", message: "Correo o contraseña incorrectos." });
-        return;
-      }
-
-      await SecureStore.setItemAsync(
-        SESSION_STORAGE_KEY,
-        JSON.stringify({ email: existing.email, name: existing.name, accountType: "business" }),
-      );
+      const profile = await loginUser(cleanEmail, password);
+      await setSession({
+        userId: profile.userId,
+        name: profile.name,
+        email: profile.email,
+        accountType: profile.accountType,
+        walletAddress: profile.walletAddress,
+      });
       setState({ status: "idle" });
       navigation.replace("Main");
     } catch (err) {
@@ -214,7 +155,7 @@ export function AuthScreen({ navigation }: Props) {
             <Text style={styles.formSubtitle}>
               {isRegister
                 ? "Elige si la wallet sera para persona natural o empresa."
-                : "Ingresa con la cuenta demo de persona natural."}
+                : "Ingresa con tu correo y contrasena."}
             </Text>
 
             <View style={styles.formFields}>
@@ -224,13 +165,13 @@ export function AuthScreen({ navigation }: Props) {
                     style={[styles.accountOption, accountType === "person" && styles.accountOptionActive]}
                     onPress={() => {
                       setAccountType("person");
-                      setName(DEMO_PERSON_NAME);
-                      setDocumentId(DEMO_PERSON_DOCUMENT);
+                      setName("");
+                      setDocumentId("");
                       setBusinessName("");
                       setTaxId("");
                       setContactName("");
-                      setEmail(DEMO_PERSON_EMAIL);
-                      setPassword(DEMO_PERSON_PASSWORD);
+                      setEmail("");
+                      setPassword("");
                       setState({ status: "idle" });
                     }}
                   >
@@ -272,7 +213,6 @@ export function AuthScreen({ navigation }: Props) {
                       placeholderTextColor="#8f969d"
                       style={styles.input}
                       autoCapitalize="words"
-                      editable={false}
                     />
                     <TextInput
                       value={documentId}
@@ -281,7 +221,6 @@ export function AuthScreen({ navigation }: Props) {
                       placeholderTextColor="#8f969d"
                       style={styles.input}
                       keyboardType="number-pad"
-                      editable={false}
                     />
                   </>
                 ) : (
@@ -320,7 +259,6 @@ export function AuthScreen({ navigation }: Props) {
                 style={styles.input}
                 autoCapitalize="none"
                 keyboardType="email-address"
-                editable={!isRegister || accountType === "business"}
               />
               <View style={styles.passwordField}>
                 <TextInput
@@ -330,7 +268,6 @@ export function AuthScreen({ navigation }: Props) {
                   placeholderTextColor="#8f969d"
                   style={styles.passwordInput}
                   secureTextEntry={!showPassword}
-                  editable={!isRegister || accountType === "business"}
                 />
                 <Pressable
                   style={styles.eyeButton}

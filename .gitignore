@@ -8,6 +8,9 @@ build/
 .env.*
 !.env.example
 
+# Local JSON "DB" (demo only — has plaintext passwords)
+api/data/
+
 # Foundry
 contracts/cache/
 contracts/out/

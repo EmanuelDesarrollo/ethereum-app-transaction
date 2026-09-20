@@ -52,12 +52,20 @@ export function toTokenUnits(monto: number, decimals: number): bigint {
   return BigInt(whole) * 10n ** BigInt(decimals) + BigInt(fracPadded || "0");
 }
 
-export function createCheckoutSession(input: { monto: number; moneda: Moneda; nota?: string }): CheckoutSession {
+export function createCheckoutSession(input: {
+  monto: number;
+  moneda: Moneda;
+  nota?: string;
+  comercio: `0x${string}`;
+}): CheckoutSession {
   if (!Number.isFinite(input.monto) || input.monto <= 0) {
     throw new Error("monto invalido: debe ser un numero mayor a 0");
   }
   if (!MONEDAS_VALIDAS.includes(input.moneda)) {
     throw new Error(`moneda invalida: debe ser ${MONEDAS_VALIDAS.join(" o ")}`);
+  }
+  if (!input.comercio) {
+    throw new Error("falta comercio: la wallet de quien esta cobrando");
   }
 
   const now = new Date();
@@ -68,7 +76,7 @@ export function createCheckoutSession(input: { monto: number; moneda: Moneda; no
     monto: input.monto,
     moneda: input.moneda,
     nota: input.nota ?? "",
-    comercio: config.comercioAddress,
+    comercio: input.comercio,
     // Demo: un solo MockStablecoin en HSK testnet cubre ambos símbolos porque
     // no existe una dirección oficial de USDC/USDT verificable en esta red.
     token: config.stablecoinAddress,
@@ -134,14 +142,14 @@ async function buildQrDataUrl(session: CheckoutSession): Promise<string> {
 export const checkoutRouter = Router();
 
 checkoutRouter.post("/", async (req, res) => {
-  const { monto, moneda, nota } = req.body ?? {};
+  const { monto, moneda, nota, comercio } = req.body ?? {};
 
-  if (monto === undefined || moneda === undefined) {
-    return res.status(400).json({ error: "faltan campos requeridos: monto y moneda" });
+  if (monto === undefined || moneda === undefined || comercio === undefined) {
+    return res.status(400).json({ error: "faltan campos requeridos: monto, moneda y comercio (tu wallet)" });
   }
 
   try {
-    const session = createCheckoutSession({ monto: Number(monto), moneda, nota });
+    const session = createCheckoutSession({ monto: Number(monto), moneda, nota, comercio });
     const qrDataUrl = await buildQrDataUrl(session);
     return res.status(201).json({
       sessionId: session.id,
