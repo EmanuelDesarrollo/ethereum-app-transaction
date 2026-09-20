@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createCheckoutSession, sendAgentMessage, getCheckoutSession } from "../../core/api/client";
 import type { CheckoutPayload, CheckoutStatus, Moneda } from "../../core/api/types";
+import { registrarMovimiento } from "../historial/ledger";
 
 export interface ChatEntry {
   from: "comercio" | "agente";
@@ -80,6 +81,16 @@ export function useComercioAgent() {
         const session = await getCheckoutSession(cobro.sessionId);
         if (session.status !== "pending") {
           setCobroStatus(session.status);
+          if (session.status === "confirmed") {
+            await registrarMovimiento({
+              tipo: "venta",
+              monto: session.monto ?? Number(cobro.payload.amount) / 10 ** cobro.payload.decimals,
+              moneda: session.moneda ?? "mUSDC",
+              nota: session.nota ?? cobro.payload.nota,
+              txHash: session.txHash,
+              orderId: session.orderId,
+            });
+          }
           if (pollRef.current) clearInterval(pollRef.current);
         }
       } catch {

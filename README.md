@@ -18,8 +18,9 @@ un contrato de registro.
 - 🗣️ **Agente cajero** (`POST /agent/message`) — entiende lenguaje natural, pide
   el monto/moneda si faltan, nunca ejecuta el cobro él mismo.
 - 🧾 **Checkout** (`POST /checkout`) — genera sesión de pago + QR.
-- 📱 **App móvil única, dos roles** — Comercio (cobra) y Persona (paga), Expo +
-  React Native.
+- 📱 **App móvil única con tabs** — una sola cuenta con modos **Cobrar · Pagar ·
+  Historial**. El usuario cambia de modo sin registrarse como "comercio" o
+  "persona".
 - 🔑 **Wallet no-custodial** — la llave privada de la persona vive solo en
   Keychain (iOS) / Keystore (Android), nunca sale del dispositivo.
 - 👂 **Listener onchain** — detecta la transferencia ERC-20 y registra la venta
@@ -34,9 +35,10 @@ tienda-stablecoin-pay/
 │   └── src/
 │       ├── core/           ← config, cliente HTTP del backend, wallet (viem + SecureStore)
 │       ├── features/
-│       │   ├── roleSelect/ ← elegir Comercio o Persona
-│       │   ├── comercio/   ← chat con el agente, muestra QR, espera confirmación
-│       │   └── persona/    ← wallet, scanner QR, firma y paga
+│       │   ├── comercio/   ← tab Cobrar: genera QR, agente, espera confirmación
+│       │   ├── persona/    ← tab Pagar: wallet, scanner QR, firma y paga
+│       │   ├── historial/  ← ventas/pagos locales + historial del backend
+│       │   └── onboarding/ ← mini tours por tab
 │       └── navigation/
 ├── api/                    ← Node + Express + TypeScript
 │   └── src/
@@ -56,7 +58,8 @@ tienda-stablecoin-pay/
 
 - **App:** React Native + TypeScript (Expo, dev workflow con `ios/`/`android/`
   nativos), `viem` para firmar/enviar, `expo-secure-store` para la llave privada,
-  `expo-camera` para el scanner QR.
+  `expo-camera` para el scanner QR, `@react-navigation/bottom-tabs` para
+  **Cobrar · Pagar · Historial**, `AsyncStorage` para onboarding/historial local.
 - **Backend:** Node + Express + TypeScript, `@anthropic-ai/sdk` (modelo
   `claude-sonnet-5`), `viem`.
 - **Contratos:** Solidity + OpenZeppelin, Foundry.
@@ -71,7 +74,7 @@ trabajen con Ethereum. La idea es reducir errores comunes de LLMs: gas
 desactualizado, direcciones inventadas, desconocimiento de x402/ERC-8004 y
 terminología incorrecta como "on-chain" en vez de "onchain".
 
-### Los tres agentes
+### Los cuatro agentes
 
 - **Agente de cobros** (`api/src/agents/cobrosAgent.ts`): crea el `orderId`,
   convierte el monto a unidades del token, genera el QR y fija el vencimiento.
@@ -82,6 +85,9 @@ terminología incorrecta como "on-chain" en vez de "onchain".
 - **Agente de registro y soporte** (`api/src/agents/registroSoporteAgent.ts`):
   guarda comprobantes e historial offchain, expone resumen diario y ayuda con
   pagos confirmados. No cambia información onchain.
+- **Agente guía** (`api/src/agents/guiaAgent.ts`): explica la app, sugiere el
+  módulo correcto y puede relanzar el tutorial. No cobra, no firma y no mueve
+  fondos.
 
 ```text
 Comercio -> Agente de cobros -> QR/orderId
@@ -128,6 +134,7 @@ Rutas utiles del backend:
 ```text
 GET  /health
 POST /agent/message
+POST /agent/guide
 POST /checkout
 GET  /checkout/:id
 POST /faucet/gas
@@ -159,14 +166,25 @@ npx expo run:android
 
 ### Probar el flujo completo
 
-1. Abre la app en dos instancias (dos simuladores, o simulador + tu celular).
-2. En una, elige **Comercio** y escribe algo como *"cóbrale 1 dólar a Ana por la
-   camisa azul"*.
-3. En la otra, elige **Persona** → "Pedir fondos de prueba" (necesita gas +
-   mUSDC antes de poder pagar) → "Escanear QR para pagar" → escanea el QR que
-   generó el comercio → confirma.
-4. El comercio ve "✓ Pagado y confirmado onchain" en segundos, cuando el
+La app ya no pregunta "soy comercio / soy persona". Después de login/registro
+entra directo a las tabs:
+
+- **Cobrar:** generar QR de cobro, usar agente cajero y esperar confirmación.
+- **Pagar:** ver wallet, pedir fondos de prueba, escanear QR y pagar.
+- **Historial:** ver ventas/pagos y relanzar tutoriales.
+
+1. Abre la app e inicia sesión con la cuenta demo: `juem@gmail.com` / `1234`.
+2. En **Cobrar**, escribe monto y nota, toca **Generar QR**.
+3. En **Pagar**, toca **Buy** o **Swap** para pedir gas + mUSDC de demo.
+4. En **Pagar**, toca **Transfer**, escanea el QR del comercio y confirma.
+5. **Cobrar** ve "✓ Pagado y confirmado onchain" en segundos, cuando el
    listener detecta la transferencia y llama `registrarVenta()`.
+6. **Historial** muestra el pago/venta registrado localmente y, si el backend
+   tiene comprobantes, también lo que devuelva `/support/history`.
+
+Para una demo desde dos dispositivos, ambos deben apuntar al mismo backend en
+`API_BASE_URL`. En dispositivo físico usa la IP local de la computadora, no
+`localhost`.
 
 ## Limitaciones conocidas (decisiones de tiempo de hackathon)
 

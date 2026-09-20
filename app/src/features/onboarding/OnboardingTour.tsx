@@ -59,7 +59,7 @@ export function OnboardingTour({ rol, restartToken = 0 }: Props) {
     <Modal transparent animationType="fade" visible={visible} onRequestClose={close}>
       <View style={styles.overlay}>
         <View style={styles.targetGlow}>
-          <Ionicons name={rol === "comercio" ? "qr-code-outline" : "wallet-outline"} size={34} color="#08090a" />
+          <Ionicons name={rol === "cobrar" ? "qr-code-outline" : "wallet-outline"} size={34} color="#08090a" />
         </View>
         <View style={styles.card}>
           <View style={styles.header}>

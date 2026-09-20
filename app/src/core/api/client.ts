@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../config";
-import type { AgentMessageResponse, CheckoutSessionResponse, GuideResponse, Moneda } from "./types";
+import type { AgentMessageResponse, CheckoutSessionResponse, GuideResponse, Moneda, TourModo } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -23,8 +23,8 @@ export function sendAgentMessage(mensaje: string, conversationId?: string): Prom
 
 export function sendGuideMessage(input: {
   mensaje: string;
-  rol: "comercio" | "persona";
-  contexto?: unknown;
+  conversationId?: string;
+  modoActual?: TourModo;
 }): Promise<GuideResponse> {
   return request<GuideResponse>("/agent/guide", {
     method: "POST",

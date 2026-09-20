@@ -1,51 +1,67 @@
+export type TourModo = "cobrar" | "pagar";
+export type GuideTab = "Cobrar" | "Pagar" | "Historial";
+
 export const APP_MAP = {
-  comercio: [
-    {
-      id: "qr",
-      titulo: "Generar QR de cobro",
-      texto: "Crea un QR EIP-681 con monto, token y destinatario para que cualquier wallet compatible lo escanee.",
-      pantalla: "ComercioChat",
-      target: "qr-card",
-    },
-    {
-      id: "chat",
-      titulo: "Cobrar hablando",
-      texto: "El comercio puede escribir una instruccion natural y el agente de cobros crea la orden.",
-      pantalla: "ComercioChat",
-      target: "input-chat",
-    },
-    {
-      id: "confirm",
-      titulo: "Confirmacion onchain",
-      texto: "El listener detecta el Transfer en HSK Chain y marca la sesion como confirmada.",
-      pantalla: "ComercioChat",
-      target: "estado-pago",
-    },
-  ],
-  persona: [
-    {
-      id: "wallet",
-      titulo: "Wallet no custodial",
-      texto: "La llave privada vive en el telefono y se usa para firmar pagos.",
-      pantalla: "PersonaWallet",
-      target: "saldo",
-    },
-    {
-      id: "faucet",
-      titulo: "Fondos de prueba",
-      texto: "La app puede pedir gas y mUSDC para el flujo demo.",
-      pantalla: "PersonaWallet",
-      target: "btn-faucet",
-    },
-    {
-      id: "scan",
-      titulo: "Escanear QR",
-      texto: "La persona escanea el QR, revisa el monto y firma la transferencia.",
-      pantalla: "PersonaScanner",
-      target: "btn-escanear",
-    },
-  ],
+  tabs: {
+    Cobrar: "Generar cobros con QR, usar el agente de cobros y ver confirmacion onchain.",
+    Pagar: "Ver wallet, pedir fondos de prueba, escanear QR y pagar.",
+    Historial: "Revisar ventas y pagos registrados en el telefono y en el backend.",
+  },
+  tours: {
+    cobrar: [
+      {
+        id: "chat",
+        titulo: "Cobra escribiendo",
+        texto: 'Escribe algo como "cobrale 15 dolares a Ana por la camisa azul" y el agente arma el cobro por ti.',
+        target: "cobrar-input",
+      },
+      {
+        id: "manual",
+        titulo: "O genera el QR a mano",
+        texto: "Si prefieres, pon el monto y una nota corta, y toca Generar QR.",
+        target: "cobrar-generador",
+      },
+      {
+        id: "qr",
+        titulo: "Muestra el QR",
+        texto: "La persona lo escanea con su wallet y paga. Tu no tocas nada mas.",
+        target: "cobrar-qr",
+      },
+      {
+        id: "confirm",
+        titulo: "Confirmacion onchain",
+        texto: "Cuando el pago se confirma en la red, veras el check verde y la venta queda registrada.",
+      },
+    ],
+    pagar: [
+      {
+        id: "wallet",
+        titulo: "Tu wallet es tuya",
+        texto: "La llave privada se guarda solo en este telefono. Nadie mas puede moverla.",
+        target: "pagar-saldo",
+      },
+      {
+        id: "faucet",
+        titulo: "Fondos de prueba",
+        texto: "Pide gas y mUSDC de demo antes de tu primer pago. Es un solo toque.",
+        target: "pagar-faucet",
+      },
+      {
+        id: "scan",
+        titulo: "Escanea y paga",
+        texto: "Apunta al QR del vendedor, revisa el monto y confirma. Listo.",
+        target: "pagar-escanear",
+      },
+    ],
+  },
 } as const;
 
-export type GuideRole = keyof typeof APP_MAP;
-export type GuideScreen = "ComercioChat" | "ComercioHistorial" | "PersonaWallet" | "PersonaScanner";
+export const GUIDE_SYSTEM_PROMPT = [
+  "Eres el guia de X-Mate.",
+  "Respondes en espanol, maximo 3 frases, con tono claro y practico.",
+  "No creas cobros, no firmas transacciones y no mueves dinero.",
+  "Solo puedes sugerir acciones del catalogo cerrado: navigate, start_tour, handoff_cobros.",
+  "Si el usuario quiere aprender a cobrar, explica y relanza el tour cobrar desde el paso mas util.",
+  "Si el usuario quiere aprender a pagar, explica y relanza el tour pagar desde el paso mas util.",
+  `Mapa de app: ${JSON.stringify(APP_MAP)}`,
+].join("\n");

@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { getOrCreateAccount, payCheckout, formatStablecoinAmount } from "../../core/wallet/walletService";
+import { registrarMovimiento } from "../historial/ledger";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PayConfirm">;
 
@@ -19,6 +20,14 @@ export function PayConfirmScreen({ route, navigation }: Props) {
     try {
       const account = await getOrCreateAccount();
       const txHash = await payCheckout(account, payload);
+      await registrarMovimiento({
+        tipo: "pago",
+        monto: Number(payload.amount) / 10 ** payload.decimals,
+        moneda: "mUSDC",
+        nota: payload.nota,
+        txHash,
+        orderId: payload.orderId,
+      });
       setState({ status: "done", txHash });
     } catch (err) {
       setState({ status: "error", message: (err as Error).message });

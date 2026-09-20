@@ -11,19 +11,16 @@ import {
   TextInput,
   View,
 } from "react-native";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { useComercioAgent } from "./useComercioAgent";
-import { OnboardingTour } from "../onboarding/OnboardingTour";
+import { TourTarget } from "../onboarding/TourTarget";
+import { useAutoTour } from "../onboarding/useAutoTour";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Comercio">;
-
-export function ComercioScreen(_props: Props) {
+export function ComercioScreen() {
+  useAutoTour("cobrar");
   const { messages, send, crearCobro, sending, error, cobro, cobroStatus } = useComercioAgent();
   const [texto, setTexto] = useState("");
   const [monto, setMonto] = useState("15");
   const [nota, setNota] = useState("Camisa azul");
-  const [tourRestartToken, setTourRestartToken] = useState(0);
 
   const enviar = () => {
     if (!texto.trim() || sending) return;
@@ -39,40 +36,38 @@ export function ComercioScreen(_props: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <OnboardingTour rol="comercio" restartToken={tourRestartToken} />
       <ScrollView style={styles.chat} contentContainerStyle={styles.chatContent}>
-        <View style={styles.generatorCard}>
-          <View style={styles.cardHeader}>
-            <Text style={styles.generatorTitle}>Generar QR de cobro</Text>
-            <Pressable style={styles.tourButton} onPress={() => setTourRestartToken((value) => value + 1)}>
-              <Text style={styles.tourButtonText}>Tutorial</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.generatorSubtitle}>Crea un cobro EIP-681 para que cualquier wallet lo escanee.</Text>
-          <View style={styles.generatorRow}>
+        <TourTarget name="cobrar-generador">
+          <View style={styles.generatorCard}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.generatorTitle}>Generar QR de cobro</Text>
+            </View>
+            <Text style={styles.generatorSubtitle}>Crea un cobro EIP-681 para que cualquier wallet lo escanee.</Text>
+            <View style={styles.generatorRow}>
+              <TextInput
+                style={[styles.generatorInput, styles.amountInput]}
+                value={monto}
+                onChangeText={setMonto}
+                placeholder="Monto"
+                keyboardType="decimal-pad"
+                editable={!sending}
+              />
+              <View style={styles.currencyPill}>
+                <Text style={styles.currencyText}>USDC</Text>
+              </View>
+            </View>
             <TextInput
-              style={[styles.generatorInput, styles.amountInput]}
-              value={monto}
-              onChangeText={setMonto}
-              placeholder="Monto"
-              keyboardType="decimal-pad"
+              style={styles.generatorInput}
+              value={nota}
+              onChangeText={setNota}
+              placeholder="Nota del cobro"
               editable={!sending}
             />
-            <View style={styles.currencyPill}>
-              <Text style={styles.currencyText}>USDC</Text>
-            </View>
+            <Pressable style={styles.generateButton} onPress={generarQr} disabled={sending}>
+              {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateButtonText}>Generar QR</Text>}
+            </Pressable>
           </View>
-          <TextInput
-            style={styles.generatorInput}
-            value={nota}
-            onChangeText={setNota}
-            placeholder="Nota del cobro"
-            editable={!sending}
-          />
-          <Pressable style={styles.generateButton} onPress={generarQr} disabled={sending}>
-            {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateButtonText}>Generar QR</Text>}
-          </Pressable>
-        </View>
+        </TourTarget>
 
         {messages.length === 0 ? (
           <Text style={styles.hint}>
@@ -86,28 +81,30 @@ export function ComercioScreen(_props: Props) {
         ))}
 
         {cobro ? (
-          <View style={styles.qrBox}>
-            <Text style={styles.qrTitle}>QR listo para cobrar</Text>
-            <Image source={{ uri: cobro.qrDataUrl }} style={styles.qr} />
-            <Text style={styles.qrHint}>La persona lo escanea desde su wallet o desde la app.</Text>
-            <Text style={styles.qrMeta} numberOfLines={1}>
-              {cobro.payload.amount} unidades hacia {cobro.payload.to}
-            </Text>
-            {cobroStatus === "pending" ? (
-              <View style={styles.statusRow}>
-                <ActivityIndicator />
-                <Text style={styles.statusText}>Esperando pago...</Text>
-              </View>
-            ) : cobroStatus === "confirmed" ? (
-              <Text style={styles.statusConfirmed}>✓ Pagado y confirmado onchain</Text>
-            ) : null}
-          </View>
+          <TourTarget name="cobrar-qr">
+            <View style={styles.qrBox}>
+              <Text style={styles.qrTitle}>QR listo para cobrar</Text>
+              <Image source={{ uri: cobro.qrDataUrl }} style={styles.qr} />
+              <Text style={styles.qrHint}>La persona lo escanea desde su wallet o desde la app.</Text>
+              <Text style={styles.qrMeta} numberOfLines={1}>
+                {cobro.payload.amount} unidades hacia {cobro.payload.to}
+              </Text>
+              {cobroStatus === "pending" ? (
+                <View style={styles.statusRow}>
+                  <ActivityIndicator />
+                  <Text style={styles.statusText}>Esperando pago...</Text>
+                </View>
+              ) : cobroStatus === "confirmed" ? (
+                <Text style={styles.statusConfirmed}>✓ Pagado y confirmado onchain</Text>
+              ) : null}
+            </View>
+          </TourTarget>
         ) : null}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
 
-      <View style={styles.inputRow}>
+      <TourTarget name="cobrar-input" style={styles.inputRow}>
         <TextInput
           style={styles.input}
           value={texto}
@@ -119,7 +116,7 @@ export function ComercioScreen(_props: Props) {
         <Pressable style={styles.sendButton} onPress={enviar} disabled={sending}>
           {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendButtonText}>Enviar</Text>}
         </Pressable>
-      </View>
+      </TourTarget>
     </KeyboardAvoidingView>
   );
 }
@@ -138,8 +135,6 @@ const styles = StyleSheet.create({
   },
   cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   generatorTitle: { color: "#08090a", fontSize: 22, fontWeight: "900" },
-  tourButton: { backgroundColor: "#eef2f3", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
-  tourButtonText: { color: "#08090a", fontSize: 12, fontWeight: "900" },
   generatorSubtitle: { color: "#646b72", fontSize: 13, lineHeight: 18 },
   generatorRow: { flexDirection: "row", gap: 10 },
   generatorInput: {

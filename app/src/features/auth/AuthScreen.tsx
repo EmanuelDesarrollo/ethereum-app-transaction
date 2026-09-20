@@ -16,7 +16,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Auth">;
-type AuthMode = "landing" | "login" | "register" | "welcome";
+type AuthMode = "landing" | "login" | "register";
 type AuthState = { status: "idle" } | { status: "loading" } | { status: "error"; message: string };
 type AccountType = "person" | "business";
 
@@ -42,33 +42,6 @@ async function saveUsers(users: DemoUser[]) {
   await SecureStore.setItemAsync(USERS_STORAGE_KEY, JSON.stringify(users));
 }
 
-function MiniDashboard() {
-  return (
-    <View style={styles.dashboard}>
-      <View style={styles.dashboardTop}>
-        <View>
-          <Text style={styles.dashboardHello}>Hola de nuevo</Text>
-          <Text style={styles.dashboardMuted}>Balance disponible</Text>
-        </View>
-        <View style={styles.dashboardDot} />
-      </View>
-      <Text style={styles.balance}>$8790.0000</Text>
-      <Text style={styles.balanceChange}>+ 3.65% hoy</Text>
-      <View style={styles.actionsRow}>
-        <View style={styles.actionCircle}>
-          <Text style={styles.actionText}>QR</Text>
-        </View>
-        <View style={styles.actionCircle}>
-          <Text style={styles.actionText}>Pay</Text>
-        </View>
-        <View style={styles.actionCircle}>
-          <Text style={styles.actionText}>Tx</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
 export function AuthScreen({ navigation }: Props) {
   const [mode, setMode] = useState<AuthMode>("landing");
   const [accountType, setAccountType] = useState<AccountType>("person");
@@ -81,7 +54,6 @@ export function AuthScreen({ navigation }: Props) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [state, setState] = useState<AuthState>({ status: "idle" });
-  const [welcomeName, setWelcomeName] = useState("de vuelta");
 
   const isRegister = mode === "register";
 
@@ -133,9 +105,8 @@ export function AuthScreen({ navigation }: Props) {
           SESSION_STORAGE_KEY,
           JSON.stringify({ email: DEMO_PERSON_EMAIL, name: DEMO_PERSON_NAME, accountType: "person" }),
         );
-        setWelcomeName(DEMO_PERSON_NAME);
-        setMode("welcome");
         setState({ status: "idle" });
+        navigation.replace("Main");
         return;
       }
 
@@ -158,9 +129,8 @@ export function AuthScreen({ navigation }: Props) {
             accountType: "person",
           }),
         );
-        setWelcomeName(DEMO_PERSON_NAME);
-        setMode("welcome");
         setState({ status: "idle" });
+        navigation.replace("Main");
         return;
       }
 
@@ -185,9 +155,8 @@ export function AuthScreen({ navigation }: Props) {
             accountType,
           }),
         );
-        setWelcomeName(user.name);
-        setMode("welcome");
         setState({ status: "idle" });
+        navigation.replace("Main");
         return;
       }
 
@@ -200,33 +169,12 @@ export function AuthScreen({ navigation }: Props) {
         SESSION_STORAGE_KEY,
         JSON.stringify({ email: existing.email, name: existing.name, accountType: "business" }),
       );
-      setWelcomeName(existing.name || "de vuelta");
-      setMode("welcome");
       setState({ status: "idle" });
+      navigation.replace("Main");
     } catch (err) {
       setState({ status: "error", message: (err as Error).message });
     }
   };
-
-  if (mode === "welcome") {
-    return (
-      <SafeAreaView style={styles.safeAreaLight}>
-        <View style={styles.welcomeContainer}>
-          <MiniDashboard />
-          <View style={styles.welcomeSheet}>
-            <View style={styles.welcomeBadge}>
-              <Text style={styles.welcomeBadgeText}>OK</Text>
-            </View>
-            <Text style={styles.welcomeTitle}>Welcome back, {welcomeName}</Text>
-            <Text style={styles.welcomeSubtitle}>Tu wallet esta lista para cobrar o pagar con stablecoins.</Text>
-            <Pressable style={styles.darkButton} onPress={() => navigation.replace("RoleSelect")}>
-              <Text style={styles.darkButtonText}>Entrar a Tienda Pay</Text>
-            </Pressable>
-          </View>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   if (mode === "landing") {
     return (
@@ -529,43 +477,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   backButtonText: { color: "#08090a", fontSize: 14, fontWeight: "900" },
-  welcomeContainer: { flex: 1, justifyContent: "flex-end", backgroundColor: "#dfe5e3" },
-  dashboard: { flex: 1, paddingHorizontal: 28, paddingTop: 58, opacity: 0.72 },
-  dashboardTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 26 },
-  dashboardHello: { color: "#08090a", fontSize: 16, fontWeight: "900" },
-  dashboardMuted: { color: "#5f676d", fontSize: 12, marginTop: 4 },
-  dashboardDot: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#08090a" },
-  balance: { color: "#08090a", fontSize: 34, fontWeight: "900" },
-  balanceChange: { color: "#0f8f42", fontSize: 13, fontWeight: "800", marginTop: 6 },
-  actionsRow: { flexDirection: "row", gap: 22, marginTop: 28 },
-  actionCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#08090a",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionText: { color: "#fff", fontSize: 12, fontWeight: "900" },
-  welcomeSheet: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 28,
-    paddingTop: 32,
-    paddingBottom: 34,
-    alignItems: "center",
-  },
-  welcomeBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#42e86f",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  welcomeBadgeText: { color: "#08090a", fontSize: 13, fontWeight: "900" },
-  welcomeTitle: { color: "#08090a", fontSize: 21, fontWeight: "900", textAlign: "center" },
-  welcomeSubtitle: { color: "#646b72", fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 8, marginBottom: 22 },
 });

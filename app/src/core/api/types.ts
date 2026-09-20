@@ -38,12 +38,15 @@ export interface AgentMessageResponse {
   };
 }
 
+export type TourModo = "cobrar" | "pagar";
+
 export type GuideAction =
-  | { type: "navigate"; pantalla: "ComercioChat" | "ComercioHistorial" | "PersonaWallet" | "PersonaScanner" }
-  | { type: "start_tour"; rol: "comercio" | "persona"; desde_paso?: string }
-  | { type: "handoff"; agente: "cobros"; mensaje: string };
+  | { type: "navigate"; tab: "Cobrar" | "Pagar" | "Historial" }
+  | { type: "start_tour"; modo: TourModo; desdePaso?: string }
+  | { type: "handoff_cobros"; mensaje: string };
 
 export interface GuideResponse {
-  reply: string;
-  actions: GuideAction[];
+  conversationId: string;
+  respuesta: string;
+  acciones: GuideAction[];
 }

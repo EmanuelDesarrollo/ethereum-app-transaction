@@ -1,87 +1,207 @@
+import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
-import { APP_MAP, type GuideRole, type GuideScreen } from "./appMap";
+import { randomUUID } from "node:crypto";
+import { APP_MAP, GUIDE_SYSTEM_PROMPT, type GuideTab, type TourModo } from "./appMap";
 
 export type GuideAction =
-  | { type: "navigate"; pantalla: GuideScreen }
-  | { type: "start_tour"; rol: GuideRole; desde_paso?: string }
-  | { type: "handoff"; agente: "cobros"; mensaje: string };
+  | { type: "navigate"; tab: GuideTab }
+  | { type: "start_tour"; modo: TourModo; desdePaso?: string }
+  | { type: "handoff_cobros"; mensaje: string };
 
-export interface GuideResult {
-  reply: string;
-  actions: GuideAction[];
+export interface GuideResponse {
+  conversationId: string;
+  respuesta: string;
+  acciones: GuideAction[];
 }
 
-const client = new Anthropic();
+type GuideConversation = {
+  messages: Anthropic.MessageParam[];
+};
 
-function fallbackGuide(mensaje: string, rol: GuideRole): GuideResult {
+const client = new Anthropic();
+const conversations = new Map<string, GuideConversation>();
+
+export const guiaRouter = Router();
+
+const GUIDE_TOOLS: Anthropic.Tool[] = [
+  {
+    name: "abrir_modulo",
+    description: "Pide a la app abrir una pestana principal.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tab: { type: "string", enum: ["Cobrar", "Pagar", "Historial"] },
+      },
+      required: ["tab"],
+    },
+  },
+  {
+    name: "iniciar_tour",
+    description: "Pide a la app relanzar un mini tour visual.",
+    input_schema: {
+      type: "object",
+      properties: {
+        modo: { type: "string", enum: ["cobrar", "pagar"] },
+        desdePaso: { type: "string", enum: ["chat", "manual", "qr", "confirm", "wallet", "faucet", "scan"] },
+      },
+      required: ["modo"],
+    },
+  },
+  {
+    name: "derivar_a_cobros",
+    description: "Deriva al agente de cobros sin crear cobros desde el guia.",
+    input_schema: {
+      type: "object",
+      properties: {
+        mensaje: { type: "string" },
+      },
+      required: ["mensaje"],
+    },
+  },
+];
+
+function fallbackGuide(mensaje: string, conversationId: string): GuideResponse {
   const text = mensaje.toLowerCase();
 
-  if (text.includes("tour") || text.includes("tutorial") || text.includes("guia")) {
+  if (text.includes("historial") || text.includes("movimiento") || text.includes("venta")) {
     return {
-      reply: "Te relanzo el tutorial para recorrer las funciones principales.",
-      actions: [{ type: "start_tour", rol }],
+      conversationId,
+      respuesta: "Te llevo al historial para revisar ventas y pagos registrados.",
+      acciones: [{ type: "navigate", tab: "Historial" }],
     };
   }
 
   if (text.includes("cobrar") || text.includes("cobro") || text.includes("qr")) {
     return {
-      reply: "Para cobrar, ve al modulo de comercio y genera un QR con monto y nota.",
-      actions: [{ type: "navigate", pantalla: "ComercioChat" }],
+      conversationId,
+      respuesta: "Para cobrar puedes escribir el pedido o generar el QR manualmente. Te muestro el tour de cobros.",
+      acciones: [
+        { type: "navigate", tab: "Cobrar" },
+        { type: "start_tour", modo: "cobrar", desdePaso: text.includes("qr") ? "qr" : "chat" },
+      ],
     };
   }
 
-  if (text.includes("fondo") || text.includes("gas") || text.includes("musdc") || text.includes("wallet")) {
+  if (text.includes("pagar") || text.includes("escan") || text.includes("wallet") || text.includes("fondo")) {
     return {
-      reply: "En tu wallet puedes pedir fondos de prueba y ver tu balance.",
-      actions: [{ type: "navigate", pantalla: "PersonaWallet" }],
+      conversationId,
+      respuesta: "Para pagar revisa tu wallet, pide fondos de prueba si hace falta y escanea el QR del vendedor.",
+      acciones: [
+        { type: "navigate", tab: "Pagar" },
+        { type: "start_tour", modo: "pagar", desdePaso: text.includes("fondo") ? "faucet" : "scan" },
+      ],
     };
   }
 
-  if (text.includes("escan") || text.includes("pagar")) {
+  if (text.includes("tutorial") || text.includes("tour") || text.includes("guia")) {
     return {
-      reply: "Para pagar, abre el scanner y apunta al QR del comercio.",
-      actions: [{ type: "navigate", pantalla: "PersonaScanner" }],
+      conversationId,
+      respuesta: "Puedo relanzar los tours de cobrar o pagar. Empiezo por el tour de pagos.",
+      acciones: [{ type: "start_tour", modo: "pagar" }],
     };
   }
 
   return {
-    reply: "Puedo guiarte para cobrar, pagar, pedir fondos de prueba o repetir el tutorial.",
-    actions: [],
+    conversationId,
+    respuesta: "Puedo ayudarte a cobrar, pagar, pedir fondos de prueba o revisar el historial.",
+    acciones: [],
   };
+}
+
+function actionFromTool(tool: Anthropic.ToolUseBlock): GuideAction | undefined {
+  const input = tool.input as Record<string, unknown>;
+
+  if (tool.name === "abrir_modulo") {
+    const tab = input.tab;
+    if (tab === "Cobrar" || tab === "Pagar" || tab === "Historial") return { type: "navigate", tab };
+  }
+
+  if (tool.name === "iniciar_tour") {
+    const modo = input.modo;
+    const desdePaso = typeof input.desdePaso === "string" ? input.desdePaso : undefined;
+    if (modo === "cobrar" || modo === "pagar") return { type: "start_tour", modo, desdePaso };
+  }
+
+  if (tool.name === "derivar_a_cobros") {
+    return {
+      type: "handoff_cobros",
+      mensaje: typeof input.mensaje === "string" ? input.mensaje : "Abrir modulo de cobros.",
+    };
+  }
+
+  return undefined;
 }
 
 export async function responderGuia(input: {
   mensaje: string;
-  rol: GuideRole;
-  contexto?: unknown;
-}): Promise<GuideResult> {
-  const system = [
-    "Eres el guia de X-Mate, una app de cobros con stablecoin.",
-    "Explicas como funciona la app y llevas al usuario al modulo correcto.",
-    "NUNCA creas cobros, firmas transacciones ni mueves dinero.",
-    "Si el usuario quiere cobrar, deriva al modulo de comercio.",
-    "Responde en maximo 3 frases.",
-    `Rol actual del usuario: ${input.rol}`,
-    `Mapa: ${JSON.stringify(APP_MAP)}`,
-    `Contexto de app: ${JSON.stringify(input.contexto ?? {})}`,
-  ].join("\n");
+  conversationId?: string;
+  modoActual?: TourModo;
+}): Promise<GuideResponse> {
+  const conversationId =
+    input.conversationId && conversations.has(input.conversationId) ? input.conversationId : randomUUID();
+  const conversation = conversations.get(conversationId) ?? { messages: [] };
+  conversations.set(conversationId, conversation);
+
+  conversation.messages.push({
+    role: "user",
+    content: `${input.mensaje}\n\nContexto: ${JSON.stringify({ modoActual: input.modoActual, app: APP_MAP.tabs })}`,
+  });
 
   try {
     const response = await client.messages.create({
       model: "claude-sonnet-5",
-      max_tokens: 300,
-      system,
-      messages: [{ role: "user", content: input.mensaje }],
+      max_tokens: 500,
+      system: GUIDE_SYSTEM_PROMPT,
+      tools: GUIDE_TOOLS,
+      messages: conversation.messages,
     });
 
+    conversation.messages.push({ role: "assistant", content: response.content });
+
     const textBlock = response.content.find((block): block is Anthropic.TextBlock => block.type === "text");
-    const fallback = fallbackGuide(input.mensaje, input.rol);
+    const actions = response.content
+      .filter((block): block is Anthropic.ToolUseBlock => block.type === "tool_use")
+      .map(actionFromTool)
+      .filter((action): action is GuideAction => Boolean(action));
+
+    if (actions.length === 0) {
+      const fallback = fallbackGuide(input.mensaje, conversationId);
+      return {
+        conversationId,
+        respuesta: textBlock?.text?.trim() || fallback.respuesta,
+        acciones: fallback.acciones,
+      };
+    }
 
     return {
-      reply: textBlock?.text?.trim() || fallback.reply,
-      actions: fallback.actions,
+      conversationId,
+      respuesta: textBlock?.text?.trim() || "Listo, te acompaño.",
+      acciones: actions,
     };
   } catch {
-    return fallbackGuide(input.mensaje, input.rol);
+    return fallbackGuide(input.mensaje, conversationId);
   }
 }
+
+guiaRouter.post("/guide", async (req, res) => {
+  const { mensaje, conversationId, modoActual } = req.body ?? {};
+
+  if (typeof mensaje !== "string" || mensaje.trim() === "") {
+    return res.status(400).json({ error: "falta el campo mensaje" });
+  }
+
+  if (modoActual !== undefined && modoActual !== "cobrar" && modoActual !== "pagar") {
+    return res.status(400).json({ error: "modoActual invalido" });
+  }
+
+  try {
+    const result = await responderGuia({
+      mensaje: mensaje.trim(),
+      conversationId: typeof conversationId === "string" ? conversationId : undefined,
+      modoActual,
+    });
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: (err as Error).message });
+  }
+});

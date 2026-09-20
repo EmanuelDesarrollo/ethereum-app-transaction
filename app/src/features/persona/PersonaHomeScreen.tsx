@@ -1,12 +1,13 @@
-import { useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import * as SecureStore from "expo-secure-store";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { usePersonaWallet } from "./usePersonaWallet";
-import { OnboardingTour } from "../onboarding/OnboardingTour";
-
-type Props = NativeStackScreenProps<RootStackParamList, "PersonaHome">;
+import { TourTarget } from "../onboarding/TourTarget";
+import { useAutoTour } from "../onboarding/useAutoTour";
 
 const marketCards = [
   { title: "Mood", value: "16", trend: "Fear+", color: "#b13a3a" },
@@ -21,10 +22,37 @@ const cryptoRows = [
   { symbol: "USDC", name: "Mock USDC", amount: "HSK testnet", value: "$1.00", change: "+0.14%", color: "#2f80ed" },
 ];
 
-export function PersonaHomeScreen({ navigation }: Props) {
+const SESSION_STORAGE_KEY = "tienda_stablecoin_session";
+
+export function PersonaHomeScreen() {
+  useAutoTour("pagar");
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { account, balance, loading, busy, error, requestTestFunds } = usePersonaWallet();
-  const [tourRestartToken, setTourRestartToken] = useState(0);
+  const [panel, setPanel] = useState<"none" | "profile" | "search">("none");
+  const [profileName, setProfileName] = useState("Juan Emilio");
+  const [profileEmail, setProfileEmail] = useState("juem@gmail.com");
+  const [search, setSearch] = useState("");
   const visibleBalance = balance ? Number(balance).toFixed(2) : "0.00";
+
+  useEffect(() => {
+    void (async () => {
+      const raw = await SecureStore.getItemAsync(SESSION_STORAGE_KEY);
+      if (!raw) return;
+      const session = JSON.parse(raw) as { name?: string; email?: string };
+      setProfileName(session.name ?? "Juan Emilio");
+      setProfileEmail(session.email ?? "juem@gmail.com");
+    })();
+  }, []);
+
+  const saveProfile = async () => {
+    const raw = await SecureStore.getItemAsync(SESSION_STORAGE_KEY);
+    const current = raw ? JSON.parse(raw) : {};
+    await SecureStore.setItemAsync(
+      SESSION_STORAGE_KEY,
+      JSON.stringify({ ...current, name: profileName, email: profileEmail }),
+    );
+    setPanel("none");
+  };
 
   if (loading) {
     return (
@@ -37,26 +65,70 @@ export function PersonaHomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
-      <OnboardingTour rol="persona" restartToken={tourRestartToken} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <View style={styles.topLeft}>
-            <View style={[styles.roundIcon, styles.roundIconActive]}>
+            <Pressable
+              style={[styles.roundIcon, panel === "profile" && styles.roundIconActive]}
+              onPress={() => setPanel((value) => (value === "profile" ? "none" : "profile"))}
+            >
               <Ionicons name="person-outline" size={28} color="#fff" />
-            </View>
+            </Pressable>
             <View style={styles.roundIcon}>
               <Ionicons name="navigate-circle-outline" size={31} color="#08090a" />
             </View>
-            <View style={styles.roundIcon}>
+            <Pressable
+              style={[styles.roundIcon, panel === "search" && styles.roundIconActive]}
+              onPress={() => setPanel((value) => (value === "search" ? "none" : "search"))}
+            >
               <Ionicons name="search-outline" size={31} color="#08090a" />
-            </View>
+            </Pressable>
           </View>
-          <Pressable style={styles.roundIcon} onPress={() => setTourRestartToken((value) => value + 1)}>
-            <Ionicons name="time-outline" size={31} color="#08090a" />
-          </Pressable>
+          <View style={styles.roundIcon}>
+            <Ionicons name="wallet-outline" size={31} color="#08090a" />
+          </View>
         </View>
 
-        <View style={styles.hero}>
+        {panel === "profile" ? (
+          <View style={styles.panelCard}>
+            <Text style={styles.panelTitle}>Tu perfil</Text>
+            <TextInput style={styles.panelInput} value={profileName} onChangeText={setProfileName} placeholder="Nombre" />
+            <TextInput
+              style={styles.panelInput}
+              value={profileEmail}
+              onChangeText={setProfileEmail}
+              placeholder="Correo"
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+            <Pressable style={styles.panelButton} onPress={saveProfile}>
+              <Text style={styles.panelButtonText}>Guardar cambios</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {panel === "search" ? (
+          <View style={styles.panelCard}>
+            <Text style={styles.panelTitle}>Buscar contacto</Text>
+            <TextInput
+              style={styles.panelInput}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Correo, wallet o nombre"
+              autoCapitalize="none"
+            />
+            <View style={styles.searchResult}>
+              <Ionicons name="person-circle-outline" size={34} color="#08090a" />
+              <View style={styles.searchCopy}>
+                <Text style={styles.searchName}>{search || "juem@gmail.com"}</Text>
+                <Text style={styles.searchHint}>Listo para cobrar o enviar</Text>
+              </View>
+            </View>
+          </View>
+        ) : null}
+
+        <TourTarget name="pagar-saldo">
+          <View style={styles.hero}>
           <Text style={styles.balance}>
             ${visibleBalance}
             <Text style={styles.balanceCents}> mUSDC</Text>
@@ -69,19 +141,24 @@ export function PersonaHomeScreen({ navigation }: Props) {
           <Text style={styles.address} numberOfLines={1}>
             {account?.address}
           </Text>
-        </View>
+          </View>
+        </TourTarget>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         <View style={styles.actionGrid}>
-          <Pressable style={styles.actionCard} onPress={() => navigation.navigate("Scan")}>
-            <Ionicons name="swap-vertical" size={31} color="#08090a" />
-            <Text style={styles.actionLabel}>Transfer</Text>
-          </Pressable>
-          <Pressable style={styles.actionCard} onPress={requestTestFunds} disabled={busy}>
-            {busy ? <ActivityIndicator color="#08090a" /> : <Ionicons name="repeat-outline" size={31} color="#08090a" />}
-            <Text style={styles.actionLabel}>Swap</Text>
-          </Pressable>
+          <TourTarget name="pagar-escanear" style={styles.actionTarget}>
+            <Pressable style={styles.actionCard} onPress={() => navigation.navigate("Scan")}>
+              <Ionicons name="swap-vertical" size={31} color="#08090a" />
+              <Text style={styles.actionLabel}>Transfer</Text>
+            </Pressable>
+          </TourTarget>
+          <TourTarget name="pagar-faucet" style={styles.actionTarget}>
+            <Pressable style={styles.actionCard} onPress={requestTestFunds} disabled={busy}>
+              {busy ? <ActivityIndicator color="#08090a" /> : <Ionicons name="repeat-outline" size={31} color="#08090a" />}
+              <Text style={styles.actionLabel}>Swap</Text>
+            </Pressable>
+          </TourTarget>
           <Pressable style={styles.actionCard} onPress={requestTestFunds} disabled={busy}>
             {busy ? <ActivityIndicator color="#08090a" /> : <Ionicons name="add" size={34} color="#08090a" />}
             <Text style={styles.actionLabel}>Buy</Text>
@@ -139,24 +216,6 @@ export function PersonaHomeScreen({ navigation }: Props) {
         </View>
       </ScrollView>
 
-      <View style={styles.bottomNav}>
-        <View style={styles.navItemActive}>
-          <Ionicons name="home" size={30} color="#08090a" />
-          <Text style={styles.navTextActive}>Home</Text>
-        </View>
-        <View style={styles.navItem}>
-          <Ionicons name="repeat-outline" size={28} color="#08090a" />
-          <Text style={styles.navText}>Swap</Text>
-        </View>
-        <View style={styles.navItem}>
-          <Ionicons name="analytics-outline" size={27} color="#08090a" />
-          <Text style={styles.navText}>Earn</Text>
-        </View>
-        <View style={styles.navItem}>
-          <Ionicons name="card-outline" size={28} color="#08090a" />
-          <Text style={styles.navText}>Card</Text>
-        </View>
-      </View>
     </View>
   );
 }
@@ -177,6 +236,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   roundIconActive: { backgroundColor: "#08090a" },
+  panelCard: { backgroundColor: "#f8f8f8", borderRadius: 8, padding: 16, gap: 10, marginBottom: 26 },
+  panelTitle: { color: "#08090a", fontSize: 20, fontWeight: "900" },
+  panelInput: {
+    minHeight: 46,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#dde3e6",
+    backgroundColor: "#fff",
+    paddingHorizontal: 14,
+    color: "#08090a",
+  },
+  panelButton: { minHeight: 46, borderRadius: 8, backgroundColor: "#08090a", alignItems: "center", justifyContent: "center" },
+  panelButtonText: { color: "#fff", fontWeight: "900" },
+  searchResult: { flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 4 },
+  searchCopy: { flex: 1 },
+  searchName: { color: "#08090a", fontWeight: "900", fontSize: 15 },
+  searchHint: { color: "#777", fontSize: 12, marginTop: 2 },
   hero: { alignItems: "center", marginBottom: 62 },
   balance: { color: "#000", fontSize: 56, fontWeight: "900", letterSpacing: 0 },
   balanceCents: { color: "#6c6c6c", fontSize: 28, fontWeight: "900" },
@@ -194,6 +270,7 @@ const styles = StyleSheet.create({
   address: { color: "#9b9b9b", fontSize: 12, marginTop: 12, maxWidth: "90%" },
   error: { color: "#b91c1c", fontSize: 13, fontWeight: "800", marginBottom: 12, textAlign: "center" },
   actionGrid: { flexDirection: "row", gap: 12, marginBottom: 34 },
+  actionTarget: { flex: 1 },
   actionCard: {
     flex: 1,
     height: 110,
@@ -243,27 +320,4 @@ const styles = StyleSheet.create({
   cryptoChange: { fontSize: 20, fontWeight: "800", marginTop: 4 },
   negative: { color: "#b13a3a" },
   positive: { color: "#3f9142" },
-  bottomNav: {
-    position: "absolute",
-    left: 28,
-    right: 28,
-    bottom: 20,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: "rgba(245,245,245,0.95)",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-  },
-  navItemActive: {
-    width: 92,
-    height: 74,
-    borderRadius: 34,
-    backgroundColor: "#ededed",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navItem: { alignItems: "center", justifyContent: "center", gap: 4 },
-  navTextActive: { color: "#08090a", fontSize: 16, fontWeight: "900", marginTop: 2 },
-  navText: { color: "#08090a", fontSize: 15, fontWeight: "800" },
 });

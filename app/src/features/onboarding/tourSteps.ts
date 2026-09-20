@@ -1,58 +1,58 @@
-export type AppRole = "comercio" | "persona";
+export type TourModo = "cobrar" | "pagar";
+export type AppRole = TourModo;
 
 export type TourStep = {
   id: string;
   titulo: string;
   texto: string;
-  pantalla: string;
-  target: string;
+  pantalla?: string;
+  target?: string;
 };
 
-export const TOUR: Record<AppRole, TourStep[]> = {
-  comercio: [
-    {
-      id: "qr",
-      titulo: "Genera tu QR",
-      texto: "Escribe el monto y la nota. El QR sale al instante para cobrar con stablecoin.",
-      pantalla: "ComercioChat",
-      target: "qr-card",
-    },
+export const TOUR: Record<TourModo, TourStep[]> = {
+  cobrar: [
     {
       id: "chat",
-      titulo: "Cobra hablando",
-      texto: 'Tambien puedes escribir "cobrale 15 dolares a Ana" y el agente arma el cobro.',
-      pantalla: "ComercioChat",
-      target: "input-chat",
+      titulo: "Cobra escribiendo",
+      texto: 'Escribe algo como "cóbrale 15 dólares a Ana por la camisa azul" y el agente arma el cobro por ti.',
+      target: "cobrar-input",
+    },
+    {
+      id: "manual",
+      titulo: "O genera el QR a mano",
+      texto: "Si prefieres, pon el monto y una nota corta, y toca Generar QR.",
+      target: "cobrar-generador",
+    },
+    {
+      id: "qr",
+      titulo: "Muestra el QR",
+      texto: "La persona lo escanea con su wallet y paga. Tú no tocas nada más.",
+      target: "cobrar-qr",
     },
     {
       id: "confirm",
       titulo: "Confirmacion onchain",
-      texto: "Cuando el pago se confirme en HSK Chain veras el estado verde. No tienes que hacer nada mas.",
-      pantalla: "ComercioChat",
-      target: "estado-pago",
+      texto: "Cuando el pago se confirma en la red, verás el check verde y la venta queda registrada.",
     },
   ],
-  persona: [
+  pagar: [
     {
       id: "wallet",
       titulo: "Tu wallet es tuya",
-      texto: "La llave privada se guarda solo en tu telefono. Nadie mas la tiene.",
-      pantalla: "PersonaWallet",
-      target: "saldo",
+      texto: "La llave privada se guarda solo en este teléfono. Nadie más puede moverla.",
+      target: "pagar-saldo",
     },
     {
       id: "faucet",
       titulo: "Fondos de prueba",
-      texto: "Usa Buy o Swap para pedir gas y mUSDC de demo antes del primer pago.",
-      pantalla: "PersonaWallet",
-      target: "btn-faucet",
+      texto: "Pide gas y mUSDC de demo antes de tu primer pago. Es un solo toque.",
+      target: "pagar-faucet",
     },
     {
       id: "scan",
-      titulo: "Escanear y pagar",
-      texto: "Toca Transfer, apunta al QR del comercio, revisa el monto y confirma.",
-      pantalla: "PersonaScanner",
-      target: "btn-escanear",
+      titulo: "Escanea y paga",
+      texto: "Apunta al QR del vendedor, revisa el monto y confirma. Listo.",
+      target: "pagar-escanear",
     },
   ],
 };
