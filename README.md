@@ -63,6 +63,33 @@ tienda-stablecoin-pay/
 - **Red:** HSK Chain testnet — chain ID `133`, RPC `https://testnet.hsk.xyz`,
   explorer [`testnet-explorer.hskchain.net`](https://testnet-explorer.hskchain.net).
 
+### Contexto Ethereum para agentes
+
+Este proyecto recomienda usar
+[`EthSkills`](docs/ethskills.md) como contexto adicional para agentes de IA que
+trabajen con Ethereum. La idea es reducir errores comunes de LLMs: gas
+desactualizado, direcciones inventadas, desconocimiento de x402/ERC-8004 y
+terminología incorrecta como "on-chain" en vez de "onchain".
+
+### Los tres agentes
+
+- **Agente de cobros** (`api/src/agents/cobrosAgent.ts`): crea el `orderId`,
+  convierte el monto a unidades del token, genera el QR y fija el vencimiento.
+  No firma ni mueve dinero.
+- **Agente verificador** (`api/src/agents/verificadorAgent.ts`): valida el pago
+  detectado en HSK Chain leyendo eventos ERC-20 `Transfer`; revisa token, monto,
+  receptor, `orderId` y transacciones duplicadas. Es de solo lectura.
+- **Agente de registro y soporte** (`api/src/agents/registroSoporteAgent.ts`):
+  guarda comprobantes e historial offchain, expone resumen diario y ayuda con
+  pagos confirmados. No cambia información onchain.
+
+```text
+Comercio -> Agente de cobros -> QR/orderId
+Persona -> paga ERC-20 -> HSK Chain
+Listener -> Agente verificador -> registro deterministico en SalesRegistry
+         -> Agente de registro y soporte -> comprobante/historial/resumen
+```
+
 ### Contratos desplegados y verificados
 
 | Contrato | Dirección |
@@ -94,6 +121,19 @@ cp .env.example .env
 # completa ANTHROPIC_API_KEY y PRIVATE_KEY (wallet owner de SalesRegistry, con HSK de gas)
 npm install
 npm run dev   # http://localhost:3000
+```
+
+Rutas utiles del backend:
+
+```text
+GET  /health
+POST /agent/message
+POST /checkout
+GET  /checkout/:id
+POST /faucet/gas
+GET  /support/history
+GET  /support/summary/daily
+GET  /support/receipts/:orderId
 ```
 
 ### 3. App

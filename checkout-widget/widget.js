@@ -23,6 +23,24 @@
 
   var STYLE_ID = "tienda-pay-styles";
   var POLL_INTERVAL_MS = 3000;
+  var HSK_CHAIN_ID_DEC = 133;
+  var HSK_CHAIN_ID_HEX = "0x85";
+  var HSK_RPC_URL = "https://testnet.hsk.xyz";
+
+  function hasBrowserWallet() {
+    return typeof window !== "undefined" && !!window.ethereum && typeof window.ethereum.request === "function";
+  }
+
+  function encodeTransferCalldata(to, amount) {
+    var selector = "a9059cbb";
+    var encodedTo = to.toLowerCase().replace(/^0x/, "").padStart(64, "0");
+    var encodedAmount = BigInt(amount).toString(16).padStart(64, "0");
+    return "0x" + selector + encodedTo + encodedAmount;
+  }
+
+  function shortAddress(address) {
+    return address ? address.slice(0, 6) + "..." + address.slice(-4) : "";
+  }
 
   function injectStyles() {
     if (document.getElementById(STYLE_ID)) return;
@@ -38,6 +56,9 @@
       ".tienda-pay-status{font-size:14px;color:#666;margin-top:8px;}",
       ".tienda-pay-status.confirmed{color:#0f766e;font-weight:700;}",
       ".tienda-pay-status.error{color:#b91c1c;}",
+      ".tienda-pay-wallet{display:none;width:100%;margin:0 0 12px;background:#0f766e;color:#fff;border:none;border-radius:8px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;}",
+      ".tienda-pay-wallet:hover{background:#0d6259;}",
+      ".tienda-pay-wallet[disabled]{opacity:.6;cursor:not-allowed;}",
       ".tienda-pay-close{margin-top:16px;background:#1a1a2e;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;cursor:pointer;}",
       ".tienda-pay-spinner{width:20px;height:20px;border:3px solid #ddd;border-top-color:#0f766e;border-radius:50%;display:inline-block;animation:tienda-pay-spin 0.8s linear infinite;}",
       "@keyframes tienda-pay-spin{to{transform:rotate(360deg);}}",
@@ -52,6 +73,92 @@
         return body;
       });
     });
+  }
+
+  function ensureHskChain(apiBase) {
+    return window.ethereum
+      .request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: HSK_CHAIN_ID_HEX }],
+      })
+      .catch(function (err) {
+        if (!err || err.code !== 4902) throw err;
+        return window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [
+            {
+              chainId: HSK_CHAIN_ID_HEX,
+              chainName: "HSK Chain Testnet",
+              nativeCurrency: { name: "HSK", symbol: "HSK", decimals: 18 },
+              rpcUrls: [HSK_RPC_URL],
+              blockExplorerUrls: ["https://testnet-explorer.hskchain.net"],
+            },
+          ],
+        });
+      })
+      .then(function () {
+        return window.ethereum.request({
+          method: "wallet_switchEthereumChain",
+          params: [{ chainId: HSK_CHAIN_ID_HEX }],
+        });
+      })
+      .catch(function (err) {
+        throw new Error(
+          "No se pudo cambiar a HSK Chain Testnet desde la wallet. " +
+            (err && err.message ? err.message : "Revisa la red en MetaMask."),
+        );
+      });
+  }
+
+  function payWithBrowserWallet(session, walletBtn, statusEl, apiBase) {
+    if (!hasBrowserWallet()) return;
+
+    walletBtn.disabled = true;
+    walletBtn.textContent = "Abriendo wallet...";
+    statusEl.textContent = "Confirma la transferencia en tu wallet.";
+    statusEl.className = "tienda-pay-status";
+
+    var payload = session.payload;
+    if (!payload || payload.chainId !== HSK_CHAIN_ID_DEC) {
+      walletBtn.disabled = false;
+      walletBtn.textContent = "Pagar con mi wallet";
+      statusEl.textContent = "La red del cobro no coincide con HSK Chain Testnet.";
+      statusEl.className = "tienda-pay-status error";
+      return;
+    }
+
+    ensureHskChain(apiBase)
+      .then(function () {
+        return window.ethereum.request({ method: "eth_requestAccounts" });
+      })
+      .then(function (accounts) {
+        var from = accounts && accounts[0];
+        if (!from) throw new Error("No se conectó ninguna cuenta.");
+
+        walletBtn.textContent = "Firmar en " + shortAddress(from);
+        return window.ethereum.request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: from,
+              to: payload.token,
+              value: "0x0",
+              data: encodeTransferCalldata(payload.to, payload.amount),
+            },
+          ],
+        });
+      })
+      .then(function (txHash) {
+        walletBtn.textContent = "Transacción enviada";
+        statusEl.textContent = "Tx enviada: " + shortAddress(txHash) + ". Esperando confirmación onchain...";
+        statusEl.className = "tienda-pay-status";
+      })
+      .catch(function (err) {
+        walletBtn.disabled = false;
+        walletBtn.textContent = "Pagar con mi wallet";
+        statusEl.textContent = err && err.message ? err.message : "No se pudo enviar el pago desde la wallet.";
+        statusEl.className = "tienda-pay-status error";
+      });
   }
 
   function openCheckoutModal(button) {
@@ -97,17 +204,28 @@
     })
       .then(function (session) {
         body.innerHTML =
+          (hasBrowserWallet() ? '<button class="tienda-pay-wallet">Pagar con mi wallet</button>' : "") +
           '<img src="' + session.qrDataUrl + '" alt="QR de pago" />' +
           '<div class="tienda-pay-status">Escanea el QR con tu wallet para pagar</div>';
+
+        var walletBtn = body.querySelector(".tienda-pay-wallet");
+        var statusEl = body.querySelector(".tienda-pay-status");
+
+        if (walletBtn) {
+          walletBtn.style.display = "block";
+          walletBtn.addEventListener("click", function () {
+            payWithBrowserWallet(session, walletBtn, statusEl, apiBase);
+          });
+        }
 
         pollHandle = setInterval(function () {
           apiRequest(apiBase, "/checkout/" + session.sessionId)
             .then(function (updated) {
               if (updated.status === "confirmed") {
                 clearInterval(pollHandle);
-                var statusEl = body.querySelector(".tienda-pay-status");
                 statusEl.textContent = "✓ Pagado y confirmado onchain";
                 statusEl.className = "tienda-pay-status confirmed";
+                if (walletBtn) walletBtn.style.display = "none";
                 closeBtn.textContent = "Listo";
               }
             })

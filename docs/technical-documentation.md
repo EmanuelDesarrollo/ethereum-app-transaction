@@ -55,15 +55,40 @@ el largo correcto de una dirección Ethereum. Para no arriesgar la demo a una
 dirección incorrecta, desplegamos un ERC-20 propio de 6 decimales con
 `faucet()` público. Sigue dentro del rango "0-2 contratos para un MVP".
 
-### Agente de cobro
+### Arquitectura multiagente
 
-`POST /agent/message` usa un loop manual de tool-use (no el tool runner beta
-del SDK) para que quede explícito en el código que **el modelo nunca ejecuta
-el cobro**: solo puede pedir la tool `crear_cobro`, y es el backend quien corre
-la misma lógica que `POST /checkout` y genera el QR antes de devolver el
-resultado al modelo como `tool_result`. Las conversaciones viven en memoria por
-`conversationId`, lo que permite el flujo "falta un dato → el agente pregunta
-→ el comercio responde → se completa el cobro".
+`POST /agent/message` usa un loop manual de tool-use (no el tool runner beta del
+SDK) para que quede explícito en el código que **el modelo nunca ejecuta el
+cobro**: solo puede pedir la tool `crear_cobro`. El backend enruta esa petición
+al **Agente de cobros** (`api/src/agents/cobrosAgent.ts`), que crea el `orderId`,
+convierte el monto a unidades del token, genera el QR y fija el vencimiento.
+Las conversaciones viven en memoria por `conversationId`, lo que permite el
+flujo "falta un dato → el agente pregunta → el comercio responde → se completa
+el cobro".
+
+El listener onchain usa el **Agente verificador**
+(`api/src/agents/verificadorAgent.ts`) para revisar el `Transfer` ERC-20 que
+representa el pago: token correcto, receptor correcto, monto exacto,
+`orderId/sessionId` pendiente y transacciones duplicadas. Este agente es de solo
+lectura; no firma ni mueve fondos.
+
+Cuando el pago ya fue verificado y el registro determinístico en
+`SalesRegistry` finaliza, el **Agente de registro y soporte**
+(`api/src/agents/registroSoporteAgent.ts`) guarda el comprobante offchain,
+historial y resumen diario. Este agente no cambia información onchain.
+
+```text
+Comercio -> Agente de cobros -> QR/orderId
+Persona -> paga ERC-20 -> HSK Chain
+Listener -> Agente verificador -> registro deterministico en SalesRegistry
+         -> Agente de registro y soporte -> comprobante/historial/resumen
+```
+
+Como hardening de conocimiento Ethereum para agentes, el proyecto documenta el
+uso de [`EthSkills`](ethskills.md): un conjunto de skills en Markdown que
+corrigen errores comunes de LLMs sobre gas, costos, x402, ERC-8004, direcciones
+de contratos, seguridad, testing e indexación. También fija la convención de
+escritura "onchain" sin guion.
 
 ### Wallet no-custodial
 
@@ -92,15 +117,6 @@ demo — en producción la persona llegaría con su propia wallet ya fondeada.
 - **Historial crediticio / reporte de ingresos.** Cada venta registrada
   onchain en `SalesRegistry` es un dato verificable de ingresos reales del
   comercio — base para microcréditos sin depender de un buró tradicional.
-- **Arquitectura multiagente.** Hoy hay un solo agente cajero. Fase 2 agrega:
-
-  ```
-  Comercio → Agente cajero → Agente verificador (revisa el pago onchain)
-                           → Agente de riesgo (detecta patrones raros)
-                           → Motor de políticas (límites de monto, horarios)
-                           → Agente contable (concilia con el off-ramp)
-  ```
-
 - **Machine Payment Protocol (MPP) / x402.** Pagos autónomos agente-a-agente
   — por ejemplo, un agente de compras del cliente pagándole directo al agente
   cajero del comercio, sin intervención humana en ninguno de los dos lados.

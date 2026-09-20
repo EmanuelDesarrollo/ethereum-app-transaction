@@ -4,6 +4,7 @@ export type CheckoutStatus = "pending" | "confirmed" | "expired";
 export interface CheckoutPayload {
   type: "tienda-stablecoin-pay/v1";
   sessionId: string;
+  orderId: string;
   chainId: number;
   token: `0x${string}`;
   decimals: number;
@@ -14,6 +15,7 @@ export interface CheckoutPayload {
 
 export interface CheckoutSessionResponse {
   sessionId: string;
+  orderId: string;
   status: CheckoutStatus;
   monto?: number;
   moneda?: Moneda;
@@ -22,6 +24,7 @@ export interface CheckoutSessionResponse {
   txHash?: `0x${string}`;
   confirmedAt?: string;
   payload: CheckoutPayload;
+  paymentUri?: string;
   qrDataUrl?: string;
 }
 

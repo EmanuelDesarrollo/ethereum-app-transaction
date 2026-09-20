@@ -3,7 +3,7 @@ import { Button, StyleSheet, Text, View } from "react-native";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
-import type { CheckoutPayload } from "../../core/api/types";
+import { parseCheckoutQr } from "../../core/payments/eip681";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Scan">;
 
@@ -30,10 +30,7 @@ export function ScanScreen({ navigation }: Props) {
     setScanned(true);
 
     try {
-      const payload = JSON.parse(result.data) as CheckoutPayload;
-      if (payload.type !== "tienda-stablecoin-pay/v1") {
-        throw new Error("este QR no es un cobro de tienda-stablecoin-pay");
-      }
+      const payload = parseCheckoutQr(result.data);
       navigation.replace("PayConfirm", { payload });
     } catch (err) {
       setError((err as Error).message);

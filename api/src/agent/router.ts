@@ -1,9 +1,9 @@
 import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
-import QRCode from "qrcode";
 import { randomUUID } from "node:crypto";
 import { crearCobroTool } from "./tools";
-import { createCheckoutSession, buildCheckoutPayload, type Moneda, type CheckoutPayload } from "../checkout/service";
+import type { Moneda, CheckoutPayload } from "../checkout/service";
+import { crearCobro } from "../agents/cobrosAgent";
 
 const SYSTEM_PROMPT =
   "Eres el asistente de cobro de una tienda. Cuando el comercio te pida cobrar algo, usa la " +
@@ -78,15 +78,15 @@ agentRouter.post("/message", async (req, res) => {
           // herramienta, y es este backend el que corre la misma lógica que
           // POST /checkout (createCheckoutSession) y genera el QR.
           const input = tool.input as { monto: number; moneda: Moneda; nota?: string };
-          const session = createCheckoutSession(input);
-          const payload = buildCheckoutPayload(session);
-          const qrDataUrl = await QRCode.toDataURL(JSON.stringify(payload));
-          cobro = { sessionId: session.id, qrDataUrl, payload };
+          const result = await crearCobro(input);
+          const session = result.session;
+          cobro = { sessionId: result.sessionId, qrDataUrl: result.qrDataUrl, payload: result.payload };
 
           toolResults.push({
             type: "tool_result",
             tool_use_id: tool.id,
             content: JSON.stringify({
+              orderId: result.orderId,
               sessionId: session.id,
               monto: session.monto,
               moneda: session.moneda,

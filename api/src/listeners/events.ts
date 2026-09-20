@@ -1,7 +1,9 @@
 import { parseAbi, type Hash } from "viem";
 import { config } from "../config";
 import { publicClient, walletClient } from "../chain";
-import { confirmCheckoutSession, findPendingSessionByPayment } from "../checkout/service";
+import { confirmCheckoutSession } from "../checkout/service";
+import { verificarPago } from "../agents/verificadorAgent";
+import { guardarVentaConfirmada } from "../agents/registroSoporteAgent";
 
 const erc20TransferAbi = parseAbi(["event Transfer(address indexed from, address indexed to, uint256 value)"]);
 
@@ -36,14 +38,20 @@ export function startPaymentListener() {
 }
 
 async function handleTransfer(to: `0x${string}` | undefined, value: bigint | undefined, txHash: Hash) {
-  if (!to || value === undefined) return;
+  const verification = verificarPago({
+    token: config.stablecoinAddress,
+    to,
+    value,
+    txHash,
+  });
 
-  const session = findPendingSessionByPayment(to, value);
-  if (!session) {
-    console.log(`[listener] transferencia de ${value} a ${to} sin sesión pendiente que coincida — se ignora`);
+  if (!verification.ok) {
+    console.log(`[verificador] ${verification.reason}: ${verification.explanation}`);
     return;
   }
 
+  const { session } = verification;
+  console.log(`[verificador] ${verification.explanation}`);
   console.log(`[listener] pago detectado para sesión ${session.id} (tx ${txHash}). Registrando venta onchain...`);
 
   try {
@@ -51,12 +59,13 @@ async function handleTransfer(to: `0x${string}` | undefined, value: bigint | und
       address: config.salesRegistryAddress,
       abi: salesRegistryAbi,
       functionName: "registrarVenta",
-      args: [session.comercio, value, session.nota],
+      args: [session.comercio, BigInt(session.amount), session.nota],
     });
 
     await publicClient.waitForTransactionReceipt({ hash: registrarVentaHash });
 
     confirmCheckoutSession(session.id, txHash);
+    guardarVentaConfirmada(session, txHash, registrarVentaHash);
     console.log(`[listener] venta registrada onchain (${registrarVentaHash}). Sesión ${session.id} confirmada.`);
   } catch (err) {
     console.error(`[listener] fallo registrando la venta de la sesión ${session.id}:`, err);

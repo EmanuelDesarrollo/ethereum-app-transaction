@@ -2,12 +2,14 @@ import { Router } from "express";
 import QRCode from "qrcode";
 import { randomUUID } from "node:crypto";
 import { config } from "../config";
+import { buildEip681PaymentUri } from "./eip681";
 
 export type Moneda = "USDC" | "USDT";
 export type CheckoutStatus = "pending" | "confirmed" | "expired";
 
 export interface CheckoutSession {
   id: string;
+  orderId: string;
   monto: number;
   moneda: Moneda;
   nota: string;
@@ -26,6 +28,7 @@ export interface CheckoutSession {
 export interface CheckoutPayload {
   type: "tienda-stablecoin-pay/v1";
   sessionId: string;
+  orderId: string;
   chainId: number;
   token: `0x${string}`;
   decimals: number;
@@ -58,8 +61,10 @@ export function createCheckoutSession(input: { monto: number; moneda: Moneda; no
   }
 
   const now = new Date();
+  const orderId = randomUUID();
   const session: CheckoutSession = {
-    id: randomUUID(),
+    id: orderId,
+    orderId,
     monto: input.monto,
     moneda: input.moneda,
     nota: input.nota ?? "",
@@ -111,6 +116,7 @@ export function buildCheckoutPayload(session: CheckoutSession): CheckoutPayload 
   return {
     type: "tienda-stablecoin-pay/v1",
     sessionId: session.id,
+    orderId: session.orderId,
     chainId: session.chainId,
     token: session.token,
     decimals: session.decimals,
@@ -122,7 +128,7 @@ export function buildCheckoutPayload(session: CheckoutSession): CheckoutPayload 
 
 async function buildQrDataUrl(session: CheckoutSession): Promise<string> {
   const payload = buildCheckoutPayload(session);
-  return QRCode.toDataURL(JSON.stringify(payload));
+  return QRCode.toDataURL(buildEip681PaymentUri(payload));
 }
 
 export const checkoutRouter = Router();
@@ -139,9 +145,11 @@ checkoutRouter.post("/", async (req, res) => {
     const qrDataUrl = await buildQrDataUrl(session);
     return res.status(201).json({
       sessionId: session.id,
+      orderId: session.orderId,
       status: session.status,
       expiresAt: session.expiresAt,
       payload: buildCheckoutPayload(session),
+      paymentUri: buildEip681PaymentUri(buildCheckoutPayload(session)),
       qrDataUrl,
     });
   } catch (err) {
@@ -158,6 +166,7 @@ checkoutRouter.get("/:id", async (req, res) => {
   const qrDataUrl = session.status === "pending" ? await buildQrDataUrl(session) : undefined;
   return res.json({
     sessionId: session.id,
+    orderId: session.orderId,
     status: session.status,
     monto: session.monto,
     moneda: session.moneda,
@@ -166,6 +175,7 @@ checkoutRouter.get("/:id", async (req, res) => {
     txHash: session.txHash,
     confirmedAt: session.confirmedAt,
     payload: buildCheckoutPayload(session),
+    paymentUri: buildEip681PaymentUri(buildCheckoutPayload(session)),
     qrDataUrl,
   });
 });

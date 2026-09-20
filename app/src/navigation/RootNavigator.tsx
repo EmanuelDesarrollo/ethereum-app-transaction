@@ -1,5 +1,6 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { AuthScreen } from "../features/auth/AuthScreen";
 import { RoleSelectScreen } from "../features/roleSelect/RoleSelectScreen";
 import { ComercioScreen } from "../features/comercio/ComercioScreen";
 import { PersonaHomeScreen } from "../features/persona/PersonaHomeScreen";
@@ -8,6 +9,7 @@ import { PayConfirmScreen } from "../features/persona/PayConfirmScreen";
 import type { CheckoutPayload } from "../core/api/types";
 
 export type RootStackParamList = {
+  Auth: undefined;
   RoleSelect: undefined;
   Comercio: undefined;
   PersonaHome: undefined;
@@ -20,7 +22,8 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export function RootNavigator() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="RoleSelect">
+      <Stack.Navigator initialRouteName="Auth">
+        <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
         <Stack.Screen name="RoleSelect" component={RoleSelectScreen} options={{ title: "Elige tu rol" }} />
         <Stack.Screen name="Comercio" component={ComercioScreen} options={{ title: "Cobrar" }} />
         <Stack.Screen name="PersonaHome" component={PersonaHomeScreen} options={{ title: "Mi wallet" }} />
