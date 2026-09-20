@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../config";
-import type { AgentMessageResponse, CheckoutSessionResponse } from "./types";
+import type { AgentMessageResponse, CheckoutSessionResponse, Moneda } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -23,6 +23,17 @@ export function sendAgentMessage(mensaje: string, conversationId?: string): Prom
 
 export function getCheckoutSession(sessionId: string): Promise<CheckoutSessionResponse> {
   return request<CheckoutSessionResponse>(`/checkout/${sessionId}`);
+}
+
+export function createCheckoutSession(input: {
+  monto: number;
+  moneda: Moneda;
+  nota?: string;
+}): Promise<CheckoutSessionResponse> {
+  return request<CheckoutSessionResponse>("/checkout", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 /// Fondea con HSK de gas una wallet nueva de la persona para que pueda pagar

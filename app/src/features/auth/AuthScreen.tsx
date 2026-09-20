@@ -10,6 +10,7 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import * as SecureStore from "expo-secure-store";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
@@ -78,6 +79,7 @@ export function AuthScreen({ navigation }: Props) {
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [state, setState] = useState<AuthState>({ status: "idle" });
   const [welcomeName, setWelcomeName] = useState("de vuelta");
 
@@ -372,15 +374,25 @@ export function AuthScreen({ navigation }: Props) {
                 keyboardType="email-address"
                 editable={!isRegister || accountType === "business"}
               />
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Contrasena"
-                placeholderTextColor="#8f969d"
-                style={styles.input}
-                secureTextEntry
-                editable={!isRegister || accountType === "business"}
-              />
+              <View style={styles.passwordField}>
+                <TextInput
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="Contrasena"
+                  placeholderTextColor="#8f969d"
+                  style={styles.passwordInput}
+                  secureTextEntry={!showPassword}
+                  editable={!isRegister || accountType === "business"}
+                />
+                <Pressable
+                  style={styles.eyeButton}
+                  onPress={() => setShowPassword((current) => !current)}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPassword ? "Ocultar contrasena" : "Mostrar contrasena"}
+                >
+                  <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={21} color="#08090a" />
+                </Pressable>
+              </View>
             </View>
 
             {state.status === "error" ? <Text style={styles.error}>{state.message}</Text> : null}
@@ -480,6 +492,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     color: "#08090a",
     fontSize: 14,
+  },
+  passwordField: {
+    minHeight: 46,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#dfe5e8",
+    borderRadius: 8,
+  },
+  passwordInput: {
+    flex: 1,
+    minHeight: 46,
+    paddingHorizontal: 14,
+    color: "#08090a",
+    fontSize: 14,
+  },
+  eyeButton: {
+    minHeight: 46,
+    paddingHorizontal: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   error: { color: "#b91c1c", fontSize: 12, fontWeight: "800", marginBottom: 10 },
   formActions: { gap: 10, marginTop: 2 },

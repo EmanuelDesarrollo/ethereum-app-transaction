@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sendAgentMessage, getCheckoutSession } from "../../core/api/client";
-import type { CheckoutPayload, CheckoutStatus } from "../../core/api/types";
+import { createCheckoutSession, sendAgentMessage, getCheckoutSession } from "../../core/api/client";
+import type { CheckoutPayload, CheckoutStatus, Moneda } from "../../core/api/types";
 
 export interface ChatEntry {
   from: "comercio" | "agente";
@@ -44,6 +44,32 @@ export function useComercioAgent() {
     [conversationId],
   );
 
+  const crearCobro = useCallback(async (input: { monto: number; moneda: Moneda; nota?: string }) => {
+    setSending(true);
+    setError(undefined);
+    try {
+      const session = await createCheckoutSession(input);
+      if (!session.qrDataUrl) {
+        throw new Error("El backend no devolvio QR para este cobro.");
+      }
+      setCobro({
+        sessionId: session.sessionId,
+        qrDataUrl: session.qrDataUrl,
+        payload: session.payload,
+      });
+      setCobroStatus("pending");
+      setMessages((prev) => [
+        ...prev,
+        { from: "comercio", text: `Generar QR por ${input.monto} ${input.moneda}` },
+        { from: "agente", text: "QR de cobro generado. La persona puede escanearlo con su wallet." },
+      ]);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setSending(false);
+    }
+  }, []);
+
   // Mientras el cobro esté pendiente, pregunta al backend cada pocos
   // segundos si ya se confirmó (el listener de eventos onchain lo actualiza).
   useEffect(() => {
@@ -66,5 +92,5 @@ export function useComercioAgent() {
     };
   }, [cobro, cobroStatus]);
 
-  return { messages, send, sending, error, cobro, cobroStatus };
+  return { messages, send, crearCobro, sending, error, cobro, cobroStatus };
 }
