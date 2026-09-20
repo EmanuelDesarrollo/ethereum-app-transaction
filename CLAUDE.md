@@ -150,3 +150,37 @@ ejemplo, no hace falta tocar el sitio real de la tienda.
 5. Al final, README y documentación técnica
 6. En cada paso, dime qué decidiste y por qué si te desviaste de este documento —
    no asumas cambios de alcance sin decírmelo primero
+
+## 12. Nota operativa: crash de arranque en iOS (symbol not found ExpoModulesJSI)
+
+Si al compilar la app en iOS (`npx expo run:ios`) crashea al abrir con un error de
+`dyld` tipo `Symbol not found: ...ExpoModulesJSI...runIsolated...`, es un desajuste
+de ABI entre `ExpoModulesCore` (que Expo distribuye precompilado) y
+`ExpoModulesJSI` (que siempre se compila localmente) — quedan compilados con
+distinto toolchain de Swift. El fix vive en `app/plugins/withIosSwiftBuildFix.js`
+(config plugin registrado en `app.json`), que se aplica solo al correr
+`expo prebuild`/`expo run:ios` cuando `ios/` no existe todavía (esa carpeta está
+en `.gitignore`, así que cada clone nuevo la regenera desde cero).
+
+**Si el plugin deja de funcionar** (p. ej. tras un bump del SDK de Expo que cambie
+el `Podfile` generado), aplica el fix a mano después de `npx expo prebuild`:
+
+1. En `app/ios/Podfile.properties.json`, agrega `"ios.usePrecompiledModules": "false"`
+2. En `app/ios/Podfile`, en la línea que dice
+   `podfile_properties['EXPO_USE_PRECOMPILED_MODULES'] == 'false'`, cambia esa
+   clave por `podfile_properties['ios.usePrecompiledModules'] == 'false'`
+   (el Podfile que genera Expo trae un bug: lee la clave equivocada)
+3. Dentro del bloque `post_install do |installer| ... end`, después de la llamada
+   a `react_native_post_install(...)`, agrega:
+   ```ruby
+   installer.pods_project.targets.each do |target|
+     target.build_configurations.each do |bc|
+       bc.build_settings['SWIFT_STRICT_CONCURRENCY'] = 'minimal'
+       bc.build_settings['SWIFT_VERSION'] = '5.0'
+     end
+   end
+   ```
+   (esto es necesario porque compilar `ExpoModulesCore` localmente expone errores
+   reales de Swift 6 strict-concurrency en su propio código fuente, que Xcode 26
+   trata como error en vez de warning)
+4. `cd app/ios && EXPO_USE_PRECOMPILED_MODULES=0 pod install && cd .. && npx expo run:ios`

@@ -34,7 +34,8 @@
         {
           "cameraPermission": "Permite el acceso a la cámara para escanear el código QR de pago."
         }
-      ]
+      ],
+      "./plugins/withIosSwiftBuildFix.js"
     ]
   }
 }
