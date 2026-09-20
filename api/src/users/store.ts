@@ -14,6 +14,7 @@ export interface User {
   name: string;
   email: string;
   password: string;
+  privyId?: string;
   walletAddress: `0x${string}`;
   documentId?: string;
   businessName?: string;
@@ -41,8 +42,21 @@ export function findUserByEmail(email: string): User | undefined {
   return readUsers().find((user) => user.email.toLowerCase() === key);
 }
 
+export function findUserByPrivyId(privyId: string): User | undefined {
+  return readUsers().find((user) => user.privyId === privyId);
+}
+
 export function getUserById(id: string): User | undefined {
   return readUsers().find((user) => user.id === id);
+}
+
+export function linkPrivyId(userId: string, privyId: string): User | undefined {
+  const users = readUsers();
+  const index = users.findIndex((user) => user.id === userId);
+  if (index === -1) return undefined;
+  users[index] = { ...users[index], privyId };
+  writeUsers(users);
+  return users[index];
 }
 
 export interface CreateUserInput {
@@ -50,6 +64,7 @@ export interface CreateUserInput {
   name: string;
   email: string;
   password: string;
+  privyId?: string;
   walletAddress: `0x${string}`;
   documentId?: string;
   businessName?: string;

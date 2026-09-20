@@ -13,6 +13,8 @@ function requireEnv(name: string): string {
 
 export const config = {
   port: Number(process.env.PORT ?? 3000),
+  privyAppId: process.env.PRIVY_APP_ID,
+  privyAppSecret: process.env.PRIVY_APP_SECRET,
   hskRpcUrl: requireEnv("HSK_RPC_URL"),
   hskChainId: Number(requireEnv("HSK_CHAIN_ID")),
   salesRegistryAddress: requireEnv("SALES_REGISTRY_ADDRESS") as `0x${string}`,

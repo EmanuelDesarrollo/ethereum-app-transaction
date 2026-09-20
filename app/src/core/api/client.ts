@@ -4,6 +4,7 @@ import type {
   CheckoutSessionResponse,
   GuideResponse,
   Moneda,
+  PrivyAuthInput,
   ReceiveQrResponse,
   RegisterInput,
   TourModo,
@@ -45,6 +46,13 @@ export function loginUser(email: string, password: string): Promise<UserProfile>
   return request<UserProfile>("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
+  });
+}
+
+export function loginWithPrivy(input: PrivyAuthInput): Promise<UserProfile> {
+  return request<UserProfile>("/auth/privy", {
+    method: "POST",
+    body: JSON.stringify(input),
   });
 }
 

@@ -10,10 +10,11 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { useLoginWithEmail, usePrivy } from "@privy-io/expo";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
-import { loginUser, registerUser } from "../../core/api/client";
+import { loginWithPrivy } from "../../core/api/client";
+import { isPrivyConfigured } from "../../core/privy";
 import { generateWallet, persistWalletForUser } from "../../core/wallet/walletService";
 import { setSession } from "../../core/session";
 import type { AccountType } from "../../core/api/types";
@@ -31,9 +32,11 @@ export function AuthScreen({ navigation }: Props) {
   const [taxId, setTaxId] = useState("");
   const [contactName, setContactName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const [state, setState] = useState<AuthState>({ status: "idle" });
+  const { sendCode, loginWithCode, state: otpState } = useLoginWithEmail();
+  const { getAccessToken } = usePrivy();
 
   const isRegister = mode === "register";
 
@@ -47,7 +50,8 @@ export function AuthScreen({ navigation }: Props) {
     setTaxId("");
     setContactName("");
     setEmail("");
-    setPassword("");
+    setOtpCode("");
+    setCodeSent(false);
   };
 
   const submit = async () => {
@@ -60,7 +64,6 @@ export function AuthScreen({ navigation }: Props) {
 
     if (
       !cleanEmail ||
-      !password ||
       (isRegister && accountType === "person" && (!cleanName || !cleanDocumentId)) ||
       (isRegister && accountType === "business" && (!cleanBusinessName || !cleanTaxId || !cleanContactName))
     ) {
@@ -74,22 +77,44 @@ export function AuthScreen({ navigation }: Props) {
 
     setState({ status: "loading" });
     try {
+      if (!isPrivyConfigured()) {
+        throw new Error("Faltan PRIVY_APP_ID y PRIVY_CLIENT_ID en app/src/core/privy.ts");
+      }
+
+      if (!codeSent) {
+        await sendCode({ email: cleanEmail });
+        setCodeSent(true);
+        setState({ status: "idle" });
+        return;
+      }
+
+      const cleanOtpCode = otpCode.trim();
+      if (!cleanOtpCode) {
+        setState({ status: "error", message: "Ingresa el código que llegó a tu correo." });
+        return;
+      }
+
+      await loginWithCode({ email: cleanEmail, code: cleanOtpCode });
+      const accessToken = await getAccessToken();
+      if (!accessToken) throw new Error("No pude obtener el access token de Privy.");
+
       if (isRegister) {
         // La wallet se genera en el dispositivo antes de registrar — al
         // backend solo le llega la dirección pública, nunca la llave.
         const wallet = generateWallet();
-        const profile = await registerUser({
+        const profile = await loginWithPrivy({
+          accessToken,
           accountType,
           name: accountType === "person" ? cleanName : cleanBusinessName,
-          email: cleanEmail,
-          password,
           walletAddress: wallet.address,
           documentId: accountType === "person" ? cleanDocumentId : undefined,
           businessName: accountType === "business" ? cleanBusinessName : undefined,
           taxId: accountType === "business" ? cleanTaxId : undefined,
           contactName: accountType === "business" ? cleanContactName : undefined,
         });
-        await persistWalletForUser(profile.userId, wallet.privateKey);
+        if (profile.walletAddress.toLowerCase() === wallet.address.toLowerCase()) {
+          await persistWalletForUser(profile.userId, wallet.privateKey);
+        }
         await setSession({
           userId: profile.userId,
           name: profile.name,
@@ -102,7 +127,7 @@ export function AuthScreen({ navigation }: Props) {
         return;
       }
 
-      const profile = await loginUser(cleanEmail, password);
+      const profile = await loginWithPrivy({ accessToken });
       await setSession({
         userId: profile.userId,
         name: profile.name,
@@ -155,7 +180,7 @@ export function AuthScreen({ navigation }: Props) {
             <Text style={styles.formSubtitle}>
               {isRegister
                 ? "Elige si la wallet sera para persona natural o empresa."
-                : "Ingresa con tu correo y contrasena."}
+                : "Ingresa con el codigo que enviaremos a tu correo."}
             </Text>
 
             <View style={styles.formFields}>
@@ -171,7 +196,8 @@ export function AuthScreen({ navigation }: Props) {
                       setTaxId("");
                       setContactName("");
                       setEmail("");
-                      setPassword("");
+                      setOtpCode("");
+                      setCodeSent(false);
                       setState({ status: "idle" });
                     }}
                   >
@@ -191,7 +217,8 @@ export function AuthScreen({ navigation }: Props) {
                       setTaxId("");
                       setContactName("");
                       setEmail("");
-                      setPassword("");
+                      setOtpCode("");
+                      setCodeSent(false);
                       setState({ status: "idle" });
                     }}
                   >
@@ -259,35 +286,32 @@ export function AuthScreen({ navigation }: Props) {
                 style={styles.input}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                editable={!codeSent}
               />
-              <View style={styles.passwordField}>
+              {codeSent ? (
                 <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Contrasena"
+                  value={otpCode}
+                  onChangeText={setOtpCode}
+                  placeholder="Codigo de Privy"
                   placeholderTextColor="#8f969d"
-                  style={styles.passwordInput}
-                  secureTextEntry={!showPassword}
+                  style={styles.input}
+                  keyboardType="number-pad"
                 />
-                <Pressable
-                  style={styles.eyeButton}
-                  onPress={() => setShowPassword((current) => !current)}
-                  accessibilityRole="button"
-                  accessibilityLabel={showPassword ? "Ocultar contrasena" : "Mostrar contrasena"}
-                >
-                  <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={21} color="#08090a" />
-                </Pressable>
-              </View>
+              ) : null}
             </View>
 
             {state.status === "error" ? <Text style={styles.error}>{state.message}</Text> : null}
+            {codeSent && otpState.status !== "error" ? (
+              <Text style={styles.successHint}>Te enviamos un codigo a {email.trim().toLowerCase()}.</Text>
+            ) : null}
+            {otpState.status === "error" ? <Text style={styles.error}>{otpState.error?.message ?? "Privy no pudo validar el codigo."}</Text> : null}
 
             <View style={styles.formActions}>
               <Pressable style={styles.darkButton} onPress={submit} disabled={state.status === "loading"}>
                 {state.status === "loading" ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.darkButtonText}>{isRegister ? "Create" : "Login"}</Text>
+                  <Text style={styles.darkButtonText}>{codeSent ? "Validar codigo" : "Enviar codigo"}</Text>
                 )}
               </Pressable>
 
@@ -378,29 +402,8 @@ const styles = StyleSheet.create({
     color: "#08090a",
     fontSize: 14,
   },
-  passwordField: {
-    minHeight: 46,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#dfe5e8",
-    borderRadius: 8,
-  },
-  passwordInput: {
-    flex: 1,
-    minHeight: 46,
-    paddingHorizontal: 14,
-    color: "#08090a",
-    fontSize: 14,
-  },
-  eyeButton: {
-    minHeight: 46,
-    paddingHorizontal: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
   error: { color: "#b91c1c", fontSize: 12, fontWeight: "800", marginBottom: 10 },
+  successHint: { color: "#0f766e", fontSize: 12, fontWeight: "800", marginBottom: 10 },
   formActions: { gap: 10, marginTop: 2 },
   switchMode: { alignItems: "center", paddingTop: 4 },
   switchModeText: { color: "#3d454d", fontSize: 13, fontWeight: "800" },

@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.127.0",
+    "@privy-io/node": "^0.34.0",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "ethers": "^6.17.0",

@@ -78,6 +78,17 @@ export interface RegisterInput {
   contactName?: string;
 }
 
+export interface PrivyAuthInput {
+  accessToken: string;
+  accountType?: AccountType;
+  name?: string;
+  walletAddress?: `0x${string}`;
+  documentId?: string;
+  businessName?: string;
+  taxId?: string;
+  contactName?: string;
+}
+
 export interface ReceiveQrResponse {
   qrDataUrl: string;
   payload: {
