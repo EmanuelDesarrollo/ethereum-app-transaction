@@ -7,6 +7,7 @@ import { faucetRouter } from "./faucet/service";
 import { startPaymentListener } from "./listeners/events";
 import { soporteRouter } from "./agents/registroSoporteAgent";
 import { guiaRouter } from "./agents/guiaAgent";
+import { receiveQrRouter } from "./wallet/receiveQr";
 
 const app = express();
 app.use(cors());
@@ -17,6 +18,7 @@ app.use("/checkout", checkoutRouter);
 app.use("/agent", agentRouter);
 app.use("/agent", guiaRouter);
 app.use("/faucet", faucetRouter);
+app.use("/wallet", receiveQrRouter);
 app.use("/support", soporteRouter);
 
 app.listen(config.port, () => {

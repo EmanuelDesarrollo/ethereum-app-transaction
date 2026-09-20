@@ -1,7 +1,7 @@
 import { Router } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 import { randomUUID } from "node:crypto";
-import { APP_MAP, GUIDE_SYSTEM_PROMPT, type GuideTab, type TourModo } from "./appMap";
+import { APP_MAP, GUIDE_SYSTEM_PROMPT, NETWORK_CONTEXT, type GuideTab, type TourModo } from "./appMap";
 
 export type GuideAction =
   | { type: "navigate"; tab: GuideTab }
@@ -62,6 +62,42 @@ const GUIDE_TOOLS: Anthropic.Tool[] = [
 
 function fallbackGuide(mensaje: string, conversationId: string): GuideResponse {
   const text = mensaje.toLowerCase();
+
+  if (text.includes("ethskill") || text.includes("ethereum") || text.includes("onchain") || text.includes("on-chain")) {
+    return {
+      conversationId,
+      respuesta:
+        "Uso EthSkills como contexto para no inventar datos Ethereum: digo onchain, separo gas de tokens y respeto que la llave vive en tu telefono. En esta app el pago es una transferencia ERC-20 firmada localmente.",
+      acciones: [],
+    };
+  }
+
+  if (text.includes("rabby") || text.includes("chainlist") || text.includes("metamask") || text.includes("red personalizada")) {
+    return {
+      conversationId,
+      respuesta: `Rabby es opcional para pruebas externas: la app ya trae wallet local. Si agregas la red manualmente, usa la configuracion del proyecto: ${NETWORK_CONTEXT.chainName}, chain ID ${NETWORK_CONTEXT.chainId}, RPC ${NETWORK_CONTEXT.rpcUrl}, moneda ${NETWORK_CONTEXT.nativeCurrency}.`,
+      acciones: [{ type: "navigate", tab: "Pagar" }],
+    };
+  }
+
+  if (text.includes("gas") || text.includes("hsk") || text.includes("faucet") || text.includes("fondos")) {
+    return {
+      conversationId,
+      respuesta: `HSK paga el gas de la red; mUSDC es el token demo para el cobro. Desde Pagar puedes pedir fondos de prueba, y para pruebas externas el faucet es ${NETWORK_CONTEXT.faucetUrl}.`,
+      acciones: [
+        { type: "navigate", tab: "Pagar" },
+        { type: "start_tour", modo: "pagar", desdePaso: "faucet" },
+      ],
+    };
+  }
+
+  if (text.includes("musdc") || text.includes("stablecoin") || text.includes("token")) {
+    return {
+      conversationId,
+      respuesta: `La demo usa ${NETWORK_CONTEXT.stablecoinSymbol}, un ERC-20 de prueba con ${NETWORK_CONTEXT.stablecoinDecimals} decimales. Su contrato configurado es ${NETWORK_CONTEXT.stablecoinAddress}.`,
+      acciones: [{ type: "navigate", tab: "Pagar" }],
+    };
+  }
 
   if (text.includes("historial") || text.includes("movimiento") || text.includes("venta")) {
     return {

@@ -50,3 +50,15 @@ export interface GuideResponse {
   respuesta: string;
   acciones: GuideAction[];
 }
+
+export interface ReceiveQrResponse {
+  qrDataUrl: string;
+  payload: {
+    type: "xmate-receive/v1";
+    chainId: number;
+    token: `0x${string}`;
+    symbol: string;
+    decimals: number;
+    to: `0x${string}`;
+  };
+}

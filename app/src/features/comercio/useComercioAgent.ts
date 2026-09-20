@@ -71,6 +71,12 @@ export function useComercioAgent() {
     }
   }, []);
 
+  const limpiarCobro = useCallback(() => {
+    setCobro(undefined);
+    setCobroStatus(undefined);
+    setError(undefined);
+  }, []);
+
   // Mientras el cobro esté pendiente, pregunta al backend cada pocos
   // segundos si ya se confirmó (el listener de eventos onchain lo actualiza).
   useEffect(() => {
@@ -103,5 +109,5 @@ export function useComercioAgent() {
     };
   }, [cobro, cobroStatus]);
 
-  return { messages, send, crearCobro, sending, error, cobro, cobroStatus };
+  return { messages, send, crearCobro, limpiarCobro, sending, error, cobro, cobroStatus };
 }

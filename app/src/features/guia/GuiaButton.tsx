@@ -29,6 +29,8 @@ const tabForModo: Record<TourModo, keyof MainTabParamList> = {
   pagar: "Pagar",
 };
 
+const quickPrompts = ["Necesito fondos", "Conectar Rabby", "Que es onchain"] as const;
+
 function modoForRoute(routeName: string): TourModo | undefined {
   if (routeName === "Cobrar") return "cobrar";
   if (routeName === "Pagar") return "pagar";
@@ -62,8 +64,7 @@ export function GuiaButton() {
     }
   };
 
-  const enviar = async () => {
-    const mensaje = input.trim();
+  const enviarMensaje = async (mensaje: string) => {
     if (!mensaje || sending) return;
 
     setInput("");
@@ -87,6 +88,10 @@ export function GuiaButton() {
     } finally {
       setSending(false);
     }
+  };
+
+  const enviar = () => {
+    void enviarMensaje(input.trim());
   };
 
   return (
@@ -121,6 +126,14 @@ export function GuiaButton() {
                 </View>
               ))}
             </ScrollView>
+
+            <View style={styles.quickRow}>
+              {quickPrompts.map((prompt) => (
+                <Pressable key={prompt} style={styles.quickButton} onPress={() => enviarMensaje(prompt)} disabled={sending}>
+                  <Text style={styles.quickText}>{prompt}</Text>
+                </Pressable>
+              ))}
+            </View>
 
             <View style={styles.inputRow}>
               <TextInput
@@ -178,6 +191,9 @@ const styles = StyleSheet.create({
   guideBubble: { alignSelf: "flex-start", backgroundColor: "#eef4f6" },
   userText: { color: "#fff", lineHeight: 20 },
   guideText: { color: "#101820", lineHeight: 20 },
+  quickRow: { flexDirection: "row", gap: 8, paddingTop: 8, flexWrap: "wrap" },
+  quickButton: { borderRadius: 999, backgroundColor: "#eef2f3", paddingHorizontal: 12, paddingVertical: 8 },
+  quickText: { color: "#08090a", fontSize: 12, fontWeight: "900" },
   inputRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingTop: 10 },
   input: {
     flex: 1,

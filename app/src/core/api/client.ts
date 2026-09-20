@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../config";
-import type { AgentMessageResponse, CheckoutSessionResponse, GuideResponse, Moneda, TourModo } from "./types";
+import type { AgentMessageResponse, CheckoutSessionResponse, GuideResponse, Moneda, ReceiveQrResponse, TourModo } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -52,6 +52,13 @@ export function createCheckoutSession(input: {
 /// hackathon — en producción la persona llegaría con fondos propios.
 export function requestGasSponsorship(address: `0x${string}`): Promise<{ txHash: `0x${string}` }> {
   return request<{ txHash: `0x${string}` }>("/faucet/gas", {
+    method: "POST",
+    body: JSON.stringify({ address }),
+  });
+}
+
+export function createReceiveQr(address: `0x${string}`): Promise<ReceiveQrResponse> {
+  return request<ReceiveQrResponse>("/wallet/receive-qr", {
     method: "POST",
     body: JSON.stringify({ address }),
   });

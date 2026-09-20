@@ -1,5 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ComercioScreen } from "../features/comercio/ComercioScreen";
 import { GuiaButton } from "../features/guia/GuiaButton";
 import { HistorialScreen } from "../features/historial/HistorialScreen";
@@ -15,6 +16,9 @@ export type MainTabParamList = {
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export function MainTabs() {
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 14);
+
   return (
     <TourProvider>
       <Tab.Navigator
@@ -24,9 +28,9 @@ export function MainTabs() {
           tabBarActiveTintColor: "#08090a",
           tabBarInactiveTintColor: "#777",
           tabBarStyle: {
-            height: 76,
+            height: 58 + bottomPadding,
             paddingTop: 8,
-            paddingBottom: 12,
+            paddingBottom: bottomPadding,
             borderTopWidth: 0,
             backgroundColor: "#fff",
           },

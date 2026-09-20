@@ -44,10 +44,16 @@ export function usePersonaWallet() {
       try {
         await requestGasSponsorship(account.address);
       } catch (err) {
-        // Si ya fue sponsoreada antes (429), seguimos: puede que ya tenga gas.
-        console.log("gas sponsorship:", (err as Error).message);
+        const message = (err as Error).message;
+        if (!message.includes("ya recibió gas")) {
+          throw new Error("No pude pedir HSK para gas. Revisa que el backend este corriendo y que API_BASE_URL apunte a tu computador.");
+        }
       }
-      await requestTestStablecoin(account);
+      try {
+        await requestTestStablecoin(account);
+      } catch {
+        throw new Error("Tu wallet aun no tiene HSK suficiente para gas. Pide HSK de prueba y vuelve a intentar.");
+      }
       await refreshBalance(account.address);
     } catch (err) {
       setError((err as Error).message);

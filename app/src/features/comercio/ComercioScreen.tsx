@@ -11,13 +11,14 @@ import {
   TextInput,
   View,
 } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useComercioAgent } from "./useComercioAgent";
 import { TourTarget } from "../onboarding/TourTarget";
 import { useAutoTour } from "../onboarding/useAutoTour";
 
 export function ComercioScreen() {
   useAutoTour("cobrar");
-  const { messages, send, crearCobro, sending, error, cobro, cobroStatus } = useComercioAgent();
+  const { messages, send, crearCobro, limpiarCobro, sending, error, cobro, cobroStatus } = useComercioAgent();
   const [texto, setTexto] = useState("");
   const [monto, setMonto] = useState("15");
   const [nota, setNota] = useState("Camisa azul");
@@ -36,53 +37,62 @@ export function ComercioScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      <ScrollView style={styles.chat} contentContainerStyle={styles.chatContent}>
-        <TourTarget name="cobrar-generador">
-          <View style={styles.generatorCard}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.generatorTitle}>Generar QR de cobro</Text>
-            </View>
-            <Text style={styles.generatorSubtitle}>Crea un cobro EIP-681 para que cualquier wallet lo escanee.</Text>
-            <View style={styles.generatorRow}>
-              <TextInput
-                style={[styles.generatorInput, styles.amountInput]}
-                value={monto}
-                onChangeText={setMonto}
-                placeholder="Monto"
-                keyboardType="decimal-pad"
-                editable={!sending}
-              />
-              <View style={styles.currencyPill}>
-                <Text style={styles.currencyText}>USDC</Text>
+      <ScrollView
+        style={styles.chat}
+        contentContainerStyle={[styles.chatContent, messages.length === 0 && styles.chatContentCentered]}
+      >
+        {!cobro ? (
+          <>
+            <TourTarget name="cobrar-generador">
+              <View style={styles.generatorCard}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.generatorTitle}>Generar QR de cobro</Text>
+                </View>
+                <Text style={styles.generatorSubtitle}>Crea un cobro EIP-681 para que cualquier wallet lo escanee.</Text>
+                <View style={styles.generatorRow}>
+                  <TextInput
+                    style={[styles.generatorInput, styles.amountInput]}
+                    value={monto}
+                    onChangeText={setMonto}
+                    placeholder="Monto"
+                    keyboardType="decimal-pad"
+                    editable={!sending}
+                  />
+                  <View style={styles.currencyPill}>
+                    <Text style={styles.currencyText}>USDC</Text>
+                  </View>
+                </View>
+                <TextInput
+                  style={styles.generatorInput}
+                  value={nota}
+                  onChangeText={setNota}
+                  placeholder="Nota del cobro"
+                  editable={!sending}
+                />
+                <Pressable style={styles.generateButton} onPress={generarQr} disabled={sending}>
+                  {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateButtonText}>Generar QR</Text>}
+                </Pressable>
               </View>
-            </View>
-            <TextInput
-              style={styles.generatorInput}
-              value={nota}
-              onChangeText={setNota}
-              placeholder="Nota del cobro"
-              editable={!sending}
-            />
-            <Pressable style={styles.generateButton} onPress={generarQr} disabled={sending}>
-              {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.generateButtonText}>Generar QR</Text>}
-            </Pressable>
-          </View>
-        </TourTarget>
+            </TourTarget>
 
-        {messages.length === 0 ? (
-          <Text style={styles.hint}>
-            También puedes escribirle al agente: "cóbrale 15 dólares a Ana por la camisa azul"
-          </Text>
-        ) : null}
-        {messages.map((m, i) => (
-          <View key={i} style={[styles.bubble, m.from === "comercio" ? styles.bubbleComercio : styles.bubbleAgente]}>
-            <Text style={m.from === "comercio" ? styles.bubbleTextComercio : styles.bubbleTextAgente}>{m.text}</Text>
-          </View>
-        ))}
-
-        {cobro ? (
+            {messages.length === 0 ? (
+              <Text style={styles.hint}>
+                También puedes escribirle al agente: "cóbrale 15 dólares a Ana por la camisa azul"
+              </Text>
+            ) : null}
+            {messages.map((m, i) => (
+              <View key={i} style={[styles.bubble, m.from === "comercio" ? styles.bubbleComercio : styles.bubbleAgente]}>
+                <Text style={m.from === "comercio" ? styles.bubbleTextComercio : styles.bubbleTextAgente}>{m.text}</Text>
+              </View>
+            ))}
+          </>
+        ) : (
           <TourTarget name="cobrar-qr">
             <View style={styles.qrBox}>
+              <Pressable style={styles.backButton} onPress={limpiarCobro}>
+                <Ionicons name="chevron-back" size={22} color="#08090a" />
+                <Text style={styles.backText}>Regresar</Text>
+              </Pressable>
               <Text style={styles.qrTitle}>QR listo para cobrar</Text>
               <Image source={{ uri: cobro.qrDataUrl }} style={styles.qr} />
               <Text style={styles.qrHint}>La persona lo escanea desde su wallet o desde la app.</Text>
@@ -99,24 +109,26 @@ export function ComercioScreen() {
               ) : null}
             </View>
           </TourTarget>
-        ) : null}
+        )}
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
 
-      <TourTarget name="cobrar-input" style={styles.inputRow}>
-        <TextInput
-          style={styles.input}
-          value={texto}
-          onChangeText={setTexto}
-          placeholder="Escribe el cobro..."
-          onSubmitEditing={enviar}
-          editable={!sending}
-        />
-        <Pressable style={styles.sendButton} onPress={enviar} disabled={sending}>
-          {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendButtonText}>Enviar</Text>}
-        </Pressable>
-      </TourTarget>
+      {!cobro ? (
+        <TourTarget name="cobrar-input" style={styles.inputRow}>
+          <TextInput
+            style={styles.input}
+            value={texto}
+            onChangeText={setTexto}
+            placeholder="Escribe el cobro..."
+            onSubmitEditing={enviar}
+            editable={!sending}
+          />
+          <Pressable style={styles.sendButton} onPress={enviar} disabled={sending}>
+            {sending ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendButtonText}>Enviar</Text>}
+          </Pressable>
+        </TourTarget>
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
@@ -125,6 +137,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f5f8f7" },
   chat: { flex: 1 },
   chatContent: { padding: 16, gap: 10 },
+  chatContentCentered: { flexGrow: 1, justifyContent: "center" },
   generatorCard: {
     backgroundColor: "#fff",
     borderRadius: 8,
@@ -171,7 +184,6 @@ const styles = StyleSheet.create({
   bubbleTextAgente: { color: "#1a1a2e" },
   qrBox: {
     alignItems: "center",
-    marginTop: 10,
     gap: 8,
     backgroundColor: "#fff",
     borderRadius: 8,
@@ -179,6 +191,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e6ebef",
   },
+  backButton: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 3, marginBottom: 4 },
+  backText: { color: "#08090a", fontSize: 15, fontWeight: "900" },
   qrTitle: { color: "#08090a", fontSize: 20, fontWeight: "900" },
   qr: { width: 240, height: 240 },
   qrHint: { color: "#666", fontSize: 13, textAlign: "center" },

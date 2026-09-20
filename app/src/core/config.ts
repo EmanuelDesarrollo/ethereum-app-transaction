@@ -2,7 +2,7 @@
 // no a tu computadora. Cambia esto a la IP de tu computadora en la red local
 // (ej. "http://192.168.1.42:3000") antes de probar en un dispositivo real.
 // En el emulador de Android usa "http://10.0.2.2:3000".
-export const API_BASE_URL = "http://localhost:3000";
+export const API_BASE_URL = "http://192.168.1.10:3000";
 
 // HSK Chain testnet (ver contracts/README.md)
 export const HSK_CHAIN_ID = 133;

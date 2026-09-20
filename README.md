@@ -87,7 +87,9 @@ terminología incorrecta como "on-chain" en vez de "onchain".
   pagos confirmados. No cambia información onchain.
 - **Agente guía** (`api/src/agents/guiaAgent.ts`): explica la app, sugiere el
   módulo correcto y puede relanzar el tutorial. No cobra, no firma y no mueve
-  fondos.
+  fondos. Usa el contexto de [`EthSkills`](docs/ethskills.md) y la configuración
+  real de red del proyecto para explicar HSK, gas, mUSDC, Rabby/ChainList y el
+  flujo onchain sin inventar direcciones ni chain IDs.
 
 ```text
 Comercio -> Agente de cobros -> QR/orderId
