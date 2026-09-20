@@ -14,6 +14,7 @@ import {
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { useComercioAgent } from "./useComercioAgent";
+import { OnboardingTour } from "../onboarding/OnboardingTour";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Comercio">;
 
@@ -22,6 +23,7 @@ export function ComercioScreen(_props: Props) {
   const [texto, setTexto] = useState("");
   const [monto, setMonto] = useState("15");
   const [nota, setNota] = useState("Camisa azul");
+  const [tourRestartToken, setTourRestartToken] = useState(0);
 
   const enviar = () => {
     if (!texto.trim() || sending) return;
@@ -37,9 +39,15 @@ export function ComercioScreen(_props: Props) {
 
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <OnboardingTour rol="comercio" restartToken={tourRestartToken} />
       <ScrollView style={styles.chat} contentContainerStyle={styles.chatContent}>
         <View style={styles.generatorCard}>
-          <Text style={styles.generatorTitle}>Generar QR de cobro</Text>
+          <View style={styles.cardHeader}>
+            <Text style={styles.generatorTitle}>Generar QR de cobro</Text>
+            <Pressable style={styles.tourButton} onPress={() => setTourRestartToken((value) => value + 1)}>
+              <Text style={styles.tourButtonText}>Tutorial</Text>
+            </Pressable>
+          </View>
           <Text style={styles.generatorSubtitle}>Crea un cobro EIP-681 para que cualquier wallet lo escanee.</Text>
           <View style={styles.generatorRow}>
             <TextInput
@@ -128,7 +136,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e6ebef",
   },
+  cardHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 10 },
   generatorTitle: { color: "#08090a", fontSize: 22, fontWeight: "900" },
+  tourButton: { backgroundColor: "#eef2f3", borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
+  tourButtonText: { color: "#08090a", fontSize: 12, fontWeight: "900" },
   generatorSubtitle: { color: "#646b72", fontSize: 13, lineHeight: 18 },
   generatorRow: { flexDirection: "row", gap: 10 },
   generatorInput: {

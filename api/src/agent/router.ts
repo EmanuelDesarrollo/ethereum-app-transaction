@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { crearCobroTool } from "./tools";
 import type { Moneda, CheckoutPayload } from "../checkout/service";
 import { crearCobro } from "../agents/cobrosAgent";
+import { responderGuia } from "../agents/guiaAgent";
+import type { GuideRole } from "../agents/appMap";
 
 const SYSTEM_PROMPT =
   "Eres el asistente de cobro de una tienda. Cuando el comercio te pida cobrar algo, usa la " +
@@ -26,6 +28,24 @@ interface AgentConversation {
 const conversations = new Map<string, AgentConversation>();
 
 export const agentRouter = Router();
+
+agentRouter.post("/guide", async (req, res) => {
+  const { mensaje, rol, contexto } = req.body ?? {};
+
+  if (typeof mensaje !== "string" || mensaje.trim() === "") {
+    return res.status(400).json({ error: "falta el campo mensaje" });
+  }
+  if (rol !== "comercio" && rol !== "persona") {
+    return res.status(400).json({ error: "rol invalido: debe ser comercio o persona" });
+  }
+
+  try {
+    const result = await responderGuia({ mensaje, rol: rol as GuideRole, contexto });
+    return res.json(result);
+  } catch (err) {
+    return res.status(500).json({ error: (err as Error).message });
+  }
+});
 
 agentRouter.post("/message", async (req, res) => {
   const { mensaje, conversationId: incomingId } = req.body ?? {};

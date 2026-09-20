@@ -1,4 +1,5 @@
 import QRCode from "qrcode";
+import { buildEip681PaymentUri } from "../checkout/eip681";
 import {
   buildCheckoutPayload,
   createCheckoutSession,
@@ -27,7 +28,7 @@ export interface CrearCobroInput {
 export async function crearCobro(input: CrearCobroInput): Promise<CobroCreado> {
   const session = createCheckoutSession(input);
   const payload = buildCheckoutPayload(session);
-  const qrDataUrl = await QRCode.toDataURL(JSON.stringify(payload));
+  const qrDataUrl = await QRCode.toDataURL(buildEip681PaymentUri(payload));
 
   return {
     orderId: session.orderId,

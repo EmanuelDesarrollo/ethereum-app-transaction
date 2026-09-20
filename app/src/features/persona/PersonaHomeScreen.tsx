@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../navigation/RootNavigator";
 import { usePersonaWallet } from "./usePersonaWallet";
+import { OnboardingTour } from "../onboarding/OnboardingTour";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PersonaHome">;
 
@@ -21,6 +23,7 @@ const cryptoRows = [
 
 export function PersonaHomeScreen({ navigation }: Props) {
   const { account, balance, loading, busy, error, requestTestFunds } = usePersonaWallet();
+  const [tourRestartToken, setTourRestartToken] = useState(0);
   const visibleBalance = balance ? Number(balance).toFixed(2) : "0.00";
 
   if (loading) {
@@ -34,6 +37,7 @@ export function PersonaHomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.screen}>
+      <OnboardingTour rol="persona" restartToken={tourRestartToken} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
           <View style={styles.topLeft}>
@@ -47,9 +51,9 @@ export function PersonaHomeScreen({ navigation }: Props) {
               <Ionicons name="search-outline" size={31} color="#08090a" />
             </View>
           </View>
-          <View style={styles.roundIcon}>
+          <Pressable style={styles.roundIcon} onPress={() => setTourRestartToken((value) => value + 1)}>
             <Ionicons name="time-outline" size={31} color="#08090a" />
-          </View>
+          </Pressable>
         </View>
 
         <View style={styles.hero}>
